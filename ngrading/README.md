@@ -3,7 +3,7 @@ ngrading
 
 NPad's Color Grading Library
 
-Requires LOVE 11.0 or later to run.
+Requires LOVE 11.0 or later to run. [Demo.LOVE](https://cdn.discordapp.com/attachments/330089431379869708/607065237157445658/demo.love)
 
 Color Grading
 -----
