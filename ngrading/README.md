@@ -9,7 +9,7 @@ Color Grading
 -----
 
 Color grading is a post-processing effect to improve the appearance of image using precomputed RGB table.
-Any effect that doesn't require neighbor pixels like blur can be precomputed using the LUT table.
+Any effect that doesn't require neighbor pixels such as hue shift, contrast, sepia, etc. can be precomputed using the LUT table.
 
 Two variants of LUT table can be used:
 
