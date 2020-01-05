@@ -24,7 +24,7 @@
 
 local type = type
 local sin, cos, atan2 = math.sin, math.cos, (math.atan2 or math.atan)
-local sqrt, rnd = math.sqrt, math.random
+local sqrt, rnd, pi = math.sqrt, math.random, math.pi
 local ffi = nil
 
 local nvec, nvec_t = {}, nil
@@ -63,7 +63,7 @@ function nvec.randomDirection(min, max)
 	max = max or min
 	assert(max > 0, "max length must be greater than zero")
 	assert(max >= min, "max length must be greater than or equal to min length")
-	return nvec.fromPolar(rnd() * 2*math.pi, rnd() * (max - min) + min)
+	return nvec.fromPolar(rnd() * 2*pi, rnd() * (max - min) + min)
 end
 
 function nvec:clone()
@@ -213,7 +213,7 @@ end
 function nvec:trim(maxLen)
 	return self:clone():trimInplace(maxLen)
 end
-nvec.trimmed = nvec.trin
+nvec.trimmed = nvec.trim
 
 function nvec:angleTo(other)
 	if other then
