@@ -74,7 +74,9 @@ local defaultShader
 local defaultShaderObject
 local usedShader
 
-local ngrading = {_VERSION = "1.0.0",}
+local defaultLUTLoadSetting = {linear = true, dpiscale = 1}
+
+local ngrading = {_VERSION = "1.0.1",}
 ngrading.__index = ngrading
 
 local function getUsedShader()
@@ -121,12 +123,12 @@ function ngrading.load(img, pixelsPerCell)
 			end
 		end
 
-		self.volumeImage = love.graphics.newVolumeImage(imgs)
+		self.volumeImage = love.graphics.newVolumeImage(imgs, defaultLUTLoadSetting)
 		self.volumeImage:setFilter("linear", "linear")
 		self.volumeImage:setWrap("clamp", "clamp", "clamp")
 	else
 		-- Just create image
-		self.image = love.graphics.newImage(imageData)
+		self.image = love.graphics.newImage(imageData, defaultLUTLoadSetting)
 		self.image:setFilter("linear", "linear")
 		self.image:setWrap("clamp", "clamp")
 	end
