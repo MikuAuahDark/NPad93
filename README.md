@@ -33,3 +33,33 @@ NFML
 **N**Pad **F**FI/Fast/Fine **M**ath **L**ibrary, meant as alternative to CPML. **Work in progress!**
 
 Functions mostly follows [GLSL function names](http://www.shaderific.com/glsl-functions).
+
+NLog
+-----
+
+**N**Pad **Log**ging library.
+
+* Uses ANSI color codes on Linux, macOS, and Windows 10 1607
+
+* Uses Windows console API on Windows 10 prior 1607
+
+* Uses [Android native logging](https://developer.android.com/ndk/reference/group/logging) functions
+
+This library missed iOS implementation and may not run with it.
+
+The log level are divided by 4: `info`, `warn`, `error`, and `debug`. NLog exports `nlog.info`, `nlog.warn`, ... and so on.
+Furthermore, there's also functions with `f` suffix (`nlog.infof`) which accepts formatted string same as `string.format`.
+
+There's `nlog.getLevel` to retrieve the current logging level:
+
+* 0 = don't print anything
+
+* 1 = print errors (`nlog.error`/`nlog.errorf`)
+
+* 2 = print warnings (`nlog.warn`/`nlog.warnf`)
+
+* 3 = print information (`nlog.info`/`nlog.infof`)
+
+* 4 = print debug information (`nlog.debug`/`nlog.debugf`)
+
+Ensure to modify the `ENVIRONMENT_VARIABLE` variable prior using the library. It's `NLOG_LOGLEVEL` environment variable by default.
