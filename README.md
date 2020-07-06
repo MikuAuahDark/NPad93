@@ -5,6 +5,13 @@ Various NPad Lua libraries for LOVE can be found here. Most libs are single file
 
 Check each file/folder for license terms.
 
+ts-declarations
+-----
+
+This is not a library, but it's TypeScript definitions meant to be used with [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua).
+
+Each file correspond to each module, unless noted. Note that some module may not have TypeScript definitions, yet.
+
 NVec
 -----
 
