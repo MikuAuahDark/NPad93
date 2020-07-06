@@ -1,0 +1,3 @@
+[submodule "nwfc"]
+	path = nwfc
+	url = https://github.com/MikuAuahDark/nwfc
