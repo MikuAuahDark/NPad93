@@ -271,6 +271,7 @@ function nvec:angleTo(other)
 	return atan2(self.y, self.x)
 end
 
+---@type fun(x: number, y: number): NVec
 nvec.new = __construct
 nvec.__index = nvec
 
