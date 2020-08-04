@@ -80,11 +80,14 @@ local function setupANSICode()
 end
 
 if love._os == "Windows" then
-	-- Windows can have many options depending on Windows version
-	-- * if "ANSICON" environment variable is present, then ANSI color code is used
-	-- * if it's possible to set VT100 mode to console (Windows 10 Anniv+), then ANSI color code is used
-	-- * otherwise, use Console API for setting color (Windows 10 RTM or older)
-	if os.getenv("ANSICON") then
+	-- Windows can have many options depending on Windows version and terminal used.
+	-- If one of these requirement is met, ANSI color code is used:
+	-- * if "WT_PROFILE_ID" environment variable is present (Windows Terminal)
+	-- * if "ANSICON" environment variable is present (ANSICON)
+	-- * if "ConEmuANSI" environment variable is "ON" (ConEmu)
+	-- * if it's possible to set VT100 mode to console (Windows 10 Anniv+)
+	-- Otherwise, NLog will fallback to Windows Console API for setting color (Windows 10 RTM or older)
+	if os.getenv("WT_PROFILE_ID") or os.getenv("ANSICON") or os.getenv("ConEmuANSI") == "ON" then
 		setupANSICode()
 	else
 		local hasFFI, ffi = pcall(require, "ffi")
