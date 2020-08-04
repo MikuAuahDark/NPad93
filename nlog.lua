@@ -112,8 +112,8 @@ if love._os == "Windows" then
 					logging_Coord maxWindowSize;
 				} logging_CSBI;
 				void * __stdcall GetStdHandle(uint32_t );
-				int SetConsoleMode(void *, uint32_t );
-				int GetConsoleMode(void *, uint32_t *);
+				int __stdcall SetConsoleMode(void *, uint32_t );
+				int __stdcall GetConsoleMode(void *, uint32_t *);
 				int __stdcall GetConsoleScreenBufferInfo(void *, logging_CSBI *);
 				int __stdcall SetConsoleTextAttribute(void *, int16_t );
 			]]
