@@ -126,8 +126,13 @@ end
 ---@param b NVec
 ---@return NVec
 function nvec:__div(b)
-	assert(isVector(self) and isVector(b), "NVec expected")
-	return __construct(self.x / b.x, self.y / b.y)
+	assert(isVector(self), "NVec expected")
+
+	if isVector(b) then
+		return __construct(self.x / b.x, self.y / b.y)
+	else
+		return __construct(self.x / b, self.y / b)
+	end
 end
 
 ---@param b NVec
