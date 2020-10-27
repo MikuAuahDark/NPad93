@@ -84,6 +84,20 @@ function nvec:unpack()
 	return self.x, self.y
 end
 
+if nvec_t then
+	local function iter(vec, v)
+		if v == "begin" then
+			return "x", self.x
+		elseif v == "x" then
+			return "y", self.y
+		end
+	end
+	
+	function nvec:__pairs()
+		return iter, self, "begin"
+	end
+end
+
 ---@return string
 function nvec:__tostring()
 	-- prefer string.format over concatenation for
