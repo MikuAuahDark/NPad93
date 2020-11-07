@@ -84,20 +84,6 @@ function nvec:unpack()
 	return self.x, self.y
 end
 
-if nvec_t then
-	local function iter(vec, v)
-		if v == "begin" then
-			return "x", self.x
-		elseif v == "x" then
-			return "y", self.y
-		end
-	end
-	
-	function nvec:__pairs()
-		return iter, self, "begin"
-	end
-end
-
 ---@return string
 function nvec:__tostring()
 	-- prefer string.format over concatenation for
@@ -294,8 +280,22 @@ end
 nvec.new = __construct
 nvec.__index = nvec
 
--- FFI metatype set for FFI accelerated version
 if nvec_t then
+	-- Make sure NVec is __pairs compatible
+	-- https://github.com/MikuAuahDark/NPad93/pull/2
+	local function iter(vec, v)
+		if v == nil then
+			return "x", self.x
+		elseif v == "x" then
+			return "y", self.y
+		end
+	end
+
+	function nvec:__pairs()
+		return iter, self, nil
+	end
+
+	-- FFI metatype set for FFI accelerated version
 	ffi.metatype(nvec_t, nvec)
 end
 
