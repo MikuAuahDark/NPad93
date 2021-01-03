@@ -35,7 +35,8 @@ Parameters:
 Get the internal shader string used for the color grading effect. The shader string contains this function
 
 ```glsl
-vec4 ngrading(Image tex, vec2 textureCoords);
+vec4 ngrading(Image tex, vec2 textureCoords); // if you have Image texture
+vec4 ngrading(vec4 color); // if you have existing color values
 ```
 
 which you can concatenate with your custom shader.

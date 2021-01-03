@@ -30,11 +30,10 @@ extern Image lut;
 extern number cellPixels;
 extern vec2 cellDimensions;
 
-vec4 ngrading(Image tex, vec2 tc)
+vec4 ngrading(vec4 texCol)
 {
 	number cdim = cellDimensions.x * cellDimensions.y - 1.0;
 	number cw = cellPixels * cellDimensions.x;
-	vec4 texCol = Texel(tex, tc);
 
 	// Sampling must be done at 0.5-increments
 	vec2 cpos = clamp(texCol.rg * cellPixels, 0.0, cellPixels - 1.0) + 0.5;
@@ -51,15 +50,24 @@ vec4 ngrading(Image tex, vec2 tc)
 	vec4 p2 = Texel(lut, tp2 / cw);
 	return vec4(mix(p1.rgb, p2.rgb, zf), texCol.a);
 }
+
+vec4 ngrading(Image tex, vec2 tc)
+{
+	return ngrading(Texel(tex, tc));
+}
 ]]
 
 ngradingShader.volume = [[
 extern VolumeImage lut;
 
+vec4 ngrading(vec4 texCol)
+{
+	return vec4(Texel(lut, texCol.rgb).rgb, texCol.a);
+}
+
 vec4 ngrading(Image tex, vec2 tc)
 {
-	vec4 texCol = Texel(tex, tc);
-	return vec4(Texel(lut, texCol.rgb).rgb, texCol.a);
+	return ngrading(Texel(tex, tc));
 }
 ]]
 
