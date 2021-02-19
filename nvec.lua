@@ -283,7 +283,7 @@ nvec.__index = nvec
 if nvec_t then
 	-- Make sure NVec is __pairs compatible
 	-- https://github.com/MikuAuahDark/NPad93/pull/2
-	local function iter(vec, v)
+	local function iter(self, v)
 		if v == nil then
 			return "x", self.x
 		elseif v == "x" then
