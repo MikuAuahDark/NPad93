@@ -70,3 +70,74 @@ There's `nlog.getLevel` to retrieve the current logging level:
 * 4 = print debug information (`nlog.debug`/`nlog.debugf`)
 
 Ensure to modify the `ENVIRONMENT_VARIABLE` variable prior using the library. It's `NLOG_LOGLEVEL` environment variable by default.
+
+NLay
+-----
+
+**N**Pad **Lay**outing Library
+
+Inspired by the flexibility of Android's [ConstraintLayout](https://developer.android.com/training/constraint-layout), this layouting library
+attempts to implement subset of the ConstraintLayout layouting functionality.
+
+NLay is **NOT** full UI library. It merely function as helper on element placement on the screen. Feel free to use NLay for your full fledged UI library!
+
+Example:
+
+![Example](https://cdn.discordapp.com/attachments/495385205520072704/854188364429262848/unknown.png)
+
+Code to reproduce rectangle placement above are as follows
+
+```lua
+local NLay = require("nlay")
+local love = require("love")
+
+local function drawRectCenter(text, rect, font)
+	local w = font:getWidth(text)
+	local h = font:getHeight()
+	local root = NLay
+
+	local x, y = NLay.inside(rect):constraint(rect, rect, rect, rect):size(w, h):get()
+	love.graphics.print(text, font, x, y)
+end
+
+function love.load()
+	NLay.update(love.window.getSafeArea())
+end
+
+function love.draw()
+	local root = NLay
+	local insideRoot = NLay.inside(root, 10)
+
+	local rect1 = insideRoot:constraint(root, root)
+		:size(100, 100)
+	local rect2 = insideRoot:constraint(root, rect1, nil, root)
+		:size(0, 100)
+		:margin({nil, 10})
+	local rect3 = insideRoot:constraint(rect2, rect2, nil, rect2)
+		:size(150, 100)
+		:margin({10})
+	local rect4 = insideRoot:constraint(rect3, rect3)
+		:into(false, true)
+		:size(75, 100)
+		:margin({10})
+
+	love.graphics.setColor(0.3, 0.3, 0.3)
+	love.graphics.rectangle("fill", rect1:get())
+	love.graphics.rectangle("fill", rect2:get())
+	love.graphics.rectangle("fill", rect3:get())
+	love.graphics.rectangle("fill", rect4:get())
+
+	local font = love.graphics.getFont()
+	love.graphics.setColor(1, 1, 1)
+	drawRectCenter("Rectangle 1", rect1, font)
+	drawRectCenter("Rectangle 2", rect2, font)
+	drawRectCenter("Rectangle 3", rect3, font)
+	drawRectCenter("Rectangle 4", rect4, font)
+end
+
+function love.resize()
+	NLay.update(love.window.getSafeArea())
+end
+```
+
+Currently there are no documentation, but it will be added on user demands. Fortunately all functions are EmmyLua-annotated.

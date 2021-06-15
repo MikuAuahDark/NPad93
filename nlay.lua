@@ -1,0 +1,393 @@
+-- NPad's Layouting Library, based on ConstraintLayout
+--
+-- Copyright (c) 2021 Miku AuahDark
+--
+-- Permission is hereby granted, free of charge, to any person obtaining a
+-- copy of this software and associated documentation files (the "Software"),
+-- to deal in the Software without restriction, including without limitation
+-- the rights to use, copy, modify, merge, publish, distribute, sublicense,
+-- and/or sell copies of the Software, and to permit persons to whom the
+-- Software is furnished to do so, subject to the following conditions:
+--
+-- The above copyright notice and this permission notice shall be included in
+-- all copies or substantial portions of the Software.
+--
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+-- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+-- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+-- DEALINGS IN THE SOFTWARE.
+
+---@class NLay.BaseConstraint
+local BaseConstraint = {}
+
+---Compute and retrieve the top-left and the dimensions of layout.
+---@return number,number,number,number
+function BaseConstraint:get()
+end
+
+---@class NLay.Constraint: NLay.BaseConstraint
+---@field private top NLay.BaseConstraint
+---@field private left NLay.BaseConstraint
+---@field private bottom NLay.BaseConstraint
+---@field private right NLay.BaseConstraint
+---@field private inTop boolean
+---@field private inLeft boolean
+---@field private inBottom boolean
+---@field private inRight boolean
+---@field private marginX number
+---@field private marginY number
+---@field private marginW number
+---@field private marginH number
+---@field private w number
+---@field private h number
+---@field private inside NLay.Inside
+local Constraint = {}
+Constraint.__index = Constraint
+
+---@param constraint NLay.Constraint
+---@param target NLay.BaseConstraint
+---@return number,number,number,number
+local function resolveConstraintSize(constraint, target)
+	if target == constraint.inside.obj then
+		return constraint.inside:_get()
+	else
+		return target:get()
+	end
+end
+
+function Constraint:get()
+	if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
+		local x, y, w, h
+
+		if self.w == -1 then
+			-- Match parent
+			local px, _, pw, _ = self.inside:_get()
+			x, w = px, pw
+		elseif self.w == 0 then
+			-- Match constraint
+			if self.left == nil or self.right == nil then
+				error("insufficient constraint for width 0")
+			end
+
+			-- Left
+			local e1x, _, e1w = resolveConstraintSize(self, self.left)
+			if self.inLeft then
+				x = e1x + self.marginX
+			else
+				x = e1x + e1w + self.marginX
+			end
+
+			-- Right
+			local e2x, _, e2w = resolveConstraintSize(self, self.right)
+
+			if self.inRight then
+				w = e2w - x - self.marginW + self.marginX
+			else
+				w = e2x + e2w - x - self.marginW + self.marginX
+			end
+		else
+			local l, r
+			w = self.w
+
+			if self.left then
+				-- Left orientation
+				local e1x, _, e1w = resolveConstraintSize(self, self.left)
+
+				if self.inLeft then
+					l = e1x + self.marginX
+				else
+					l = e1x + e1w + self.marginX
+				end
+			end
+
+			if self.right then
+				-- Right orientation
+				local e2x, _, e2w = resolveConstraintSize(self, self.right)
+
+				if self.inRight then
+					r = e2x + e2w - self.marginW
+				else
+					r = e2x - self.marginW
+				end
+			end
+
+			if self.left == self.right and self.left ~= nil then
+				--print(l, r, w, (l + r - w) / 2)
+			end
+
+			if l ~= nil and r ~= nil then
+				-- Horizontally centered
+				x = (l + r - w) / 2
+			else
+				x = l or r
+			end
+		end
+
+		if self.h == -1 then
+			-- Match parent
+			local _, py, _, ph = self.inside:_get()
+			y, h = py, ph
+		elseif self.h == 0 then
+			-- Match constraint
+			if self.bottom == nil or self.top == nil then
+				error("insufficient constraint for height 0")
+			end
+
+			local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
+
+			if self.inTop then
+				y = e1y + self.marginY
+			else
+				y = e1y + e1h + self.marginY
+			end
+
+			local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
+
+			if self.inTop then
+				h = e2y - y - self.marginH + self.marginY
+			else
+				h = e2y + e2h - self.marginH - h + self.marginY
+			end
+		else
+			local t, b
+			h = self.h
+
+			if self.top then
+				-- Top orientation
+				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
+
+				if self.inTop then
+					t = e1y + self.marginY
+				else
+					t = e1y + e1h + self.marginY
+				end
+			end
+
+			if self.bottom then
+				-- Bottom orientation
+				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
+
+				if self.inTop then
+					b = e2y + e2h - self.marginH
+				else
+					b = e2y - self.marginH
+				end
+			end
+
+			if t ~= nil and b ~= nil then
+				-- Vertically centered
+				y = (t + b - h) / 2
+			else
+				y = t or b
+			end
+		end
+
+		assert(x and y and w and h, "fatal error please report!")
+		return x, y, w, h
+	else
+		error("insufficient constraint")
+	end
+end
+
+function Constraint:_overrideIntoFlags()
+	if self.top == self.bottom and self.top ~= nil then
+		self.inTop = true
+		self.inBottom = true
+	end
+
+	if self.left == self.right and self.left ~= nil then
+		self.inLeft = true
+		self.inRight = true
+	end
+end
+
+---This function tells that for constraint specified at {top,left,bottom,right}, it should NOT use the opposite sides
+---of the constraint. This mainly used to prevent ambiguity.
+---@param top boolean
+---@param left boolean
+---@param bottom boolean
+---@param right boolean
+---@return NLay.Constraint
+function Constraint:into(top, left, bottom, right)
+	self.inTop = not not top
+	self.inLeft = not not left
+	self.inBottom = not not bottom
+	self.inRight = not not right
+	self:_overrideIntoFlags()
+
+	return self
+end
+
+---Set the constraint margin
+---@param margin number|number[] Either number to apply all margins or table {top, left, bottom, right} margin.
+---Defaults to 0 for absent/nil values.
+---@return NLay.Constraint
+function Constraint:margin(margin)
+	margin = margin or 0
+
+	if type(margin) == "number" then
+		self.marginX, self.marginY, self.marginW, self.marginH = margin, margin, margin, margin
+	else
+		self.marginX = margin[2] or 0
+		self.marginY = margin[1] or 0
+		self.marginW = margin[4] or 0
+		self.marginH = margin[3] or 0
+	end
+
+	return self
+end
+
+---Set the size of constraint. If width/height is 0, it will calculate it based on the other connected constraint.
+---If it's -1, then it will use parent's width/height minus padding.
+---@param width number Constraint width.
+---@param height number Constraint height.
+---@return NLay.Constraint
+function Constraint:size(width, height)
+	assert(width >= 0 or width == -1, "invalid width")
+	assert(height >= 0 or height == -1, "invalid height")
+	self.w, self.h = width, height
+
+	return self
+end
+
+---@class NLay.MaxConstraint: NLay.BaseConstraint
+---@field private list NLay.BaseConstraint[]
+local MaxConstraint = {}
+MaxConstraint.__index = MaxConstraint
+
+---@return number,number,number,number
+function MaxConstraint:get()
+	local minx, miny, maxx, maxy = self.list[1]:get()
+	maxx = maxx + minx
+	maxy = maxy + miny
+
+	for i = 2, #self.list do
+		local x, y, w, h = self.list[i]:get()
+		minx = math.min(minx, x)
+		miny = math.min(miny, y)
+		maxx = math.max(maxx, x + w)
+		maxy = math.max(maxy, y + h)
+	end
+
+	return minx, miny, maxx - minx, maxy - miny
+end
+
+---This class is not particularly useful other than creating new `NLay.Constraint` object.
+---However it's probably better to cache this object if lots of same constraint creation is done with same
+---"inside" parameters
+---@class NLay.Inside
+---@field private obj NLay.BaseConstraint
+---@field private pad number[]
+local Inside = {}
+Inside.__index = Inside
+
+---Create new `NLay.Constraint` object.
+---@param top NLay.BaseConstraint
+---@param left NLay.BaseConstraint
+---@param bottom NLay.BaseConstraint
+---@param right NLay.BaseConstraint
+---@return NLay.Constraint
+function Inside:constraint(top, left, bottom, right)
+	local result = setmetatable({
+		top = top,
+		left = left,
+		bottom = bottom,
+		right = right,
+		inTop = top == self.obj,
+		inLeft = left == self.obj,
+		inBottom = bottom == self.obj,
+		inRight = right == self.obj,
+		marginX = 0,
+		marginY = 0,
+		marginW = 0,
+		marginH = 0,
+		w = -1,
+		h = -1,
+		inside = self
+	}, Constraint)
+
+	-- Deduce "into" flags
+	result:_overrideIntoFlags()
+
+	return result
+end
+
+---@return number,number,number,number
+function Inside:_get()
+	local x, y, w, h = self.obj:get()
+	return x + self.pad[2], y + self.pad[1], w - self.pad[4] - self.pad[2], h - self.pad[3] - self.pad[1]
+end
+
+---@class NLay.RootConstraint: NLay.BaseConstraint
+local RootConstraint = {}
+RootConstraint.__index = RootConstraint
+RootConstraint.x = 0
+RootConstraint.y = 0
+RootConstraint.width = 800
+RootConstraint.height = 600
+RootConstraint._VERSION = "1.0.0"
+RootConstraint._AUTHOR = "MikuAuahDark"
+RootConstraint._LICENSE = "MIT"
+
+---@return number,number,number,number
+function RootConstraint:get()
+	return RootConstraint.x, RootConstraint.y, RootConstraint.width, RootConstraint.height
+end
+
+---Update the game window dimensions. Normally all return values from `love.window.getSafeArea` should be passed.
+---@param x number
+---@param y number
+---@param w number
+---@param h number
+function RootConstraint.update(x, y, w, h)
+	if
+		RootConstraint.x ~= x or
+		RootConstraint.y ~= y or
+		RootConstraint.width ~= w or
+		RootConstraint.height ~= h
+	then
+		RootConstraint.x, RootConstraint.y, RootConstraint.width, RootConstraint.height = x, y, w, h
+	end
+end
+
+---Create new `NLay.Inside` object used to construct `NLay.Constraint`.
+---@param object NLay.BaseConstraint
+---@param padding number|number[]
+---@return NLay.Inside
+function RootConstraint.inside(object, padding)
+	padding = padding or 0
+
+	-- Copy padding values
+	local tabpad
+	if type(padding) == "number" then
+		tabpad = {padding, padding, padding, padding}
+	else
+		tabpad = {0, 0, 0, 0}
+		for i = 1, 4 do
+			tabpad[i] = padding[i] or 0
+		end
+	end
+
+	-- TODO check if padding values were correct?
+	return setmetatable({
+		obj = object,
+		pad = tabpad
+	}, Inside)
+end
+
+---Create new constraint whose the size and the position is based on bounding box of the other constraint.
+---@vararg NLay.BaseConstraint
+---@return NLay.MaxConstraint
+function RootConstraint.max(...)
+	local list = {...}
+	assert(#list > 1, "need at least 2 constraint")
+
+	return setmetatable({
+		list = list
+	}, MaxConstraint)
+end
+
+return RootConstraint
