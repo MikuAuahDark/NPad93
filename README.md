@@ -76,10 +76,10 @@ NLay
 
 **N**Pad **Lay**outing Library
 
-Inspired by the flexibility of Android's [ConstraintLayout](https://developer.android.com/training/constraint-layout), this layouting library
-attempts to implement subset of the ConstraintLayout layouting functionality.
+NLay (pronounced "Enlay") is layouting library inspired by the flexibility of Android's [ConstraintLayout](https://developer.android.com/training/constraint-layout).
+This layouting library attempts to implement subset of the ConstraintLayout layouting functionality.
 
-NLay is **NOT** full UI library. It merely function as helper on element placement on the screen. Feel free to use NLay for your full fledged UI library!
+NLay is **NOT** full UI library. It merely function as helper on element placement on the screen. However you are 100% allowed to use NLay for your full featured UI library!
 
 Example:
 
@@ -140,4 +140,12 @@ function love.resize()
 end
 ```
 
-Currently there are no documentation, but it will be added on user demands. Fortunately all functions are EmmyLua-annotated.
+Features not implemented yet:
+
+* [Aspect ratio size 0 constraint](https://developer.android.com/training/constraint-layout#ratio)
+
+* [Guideline constraint](https://developer.android.com/training/constraint-layout#constrain-to-a-guideline)
+
+* [Bidirectional constraint chain](https://developer.android.com/training/constraint-layout#constrain-chain)
+
+Currently there are no documentation, but it will be added on user demands. All functions are EmmyLua-annotated however.

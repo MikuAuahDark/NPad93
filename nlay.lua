@@ -43,6 +43,8 @@ end
 ---@field private marginH number
 ---@field private w number
 ---@field private h number
+---@field private biasHorz number
+---@field private biasVert number
 ---@field private inside NLay.Inside
 local Constraint = {}
 Constraint.__index = Constraint
@@ -56,6 +58,10 @@ local function resolveConstraintSize(constraint, target)
 	else
 		return target:get()
 	end
+end
+
+local function mix(a, b, t)
+	return (1 - t) * a + t * b
 end
 
 function Constraint:get()
@@ -82,11 +88,10 @@ function Constraint:get()
 
 			-- Right
 			local e2x, _, e2w = resolveConstraintSize(self, self.right)
-
 			if self.inRight then
-				w = e2w - x - self.marginW + self.marginX
+				w = e2x + e2w - x - self.marginW
 			else
-				w = e2x + e2w - x - self.marginW + self.marginX
+				w = e2x - x - self.marginW
 			end
 		else
 			local l, r
@@ -108,19 +113,15 @@ function Constraint:get()
 				local e2x, _, e2w = resolveConstraintSize(self, self.right)
 
 				if self.inRight then
-					r = e2x + e2w - self.marginW
+					r = e2x + e2w - self.marginW - w
 				else
-					r = e2x - self.marginW
+					r = e2x - self.marginW - w
 				end
-			end
-
-			if self.left == self.right and self.left ~= nil then
-				--print(l, r, w, (l + r - w) / 2)
 			end
 
 			if l ~= nil and r ~= nil then
 				-- Horizontally centered
-				x = (l + r - w) / 2
+				x = mix(l, r, self.biasHorz)
 			else
 				x = l or r
 			end
@@ -146,10 +147,10 @@ function Constraint:get()
 
 			local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
 
-			if self.inTop then
-				h = e2y - y - self.marginH + self.marginY
+			if self.inBottom then
+				h = e2y + e2h - y - self.marginH
 			else
-				h = e2y + e2h - self.marginH - h + self.marginY
+				h = e2y - y - self.marginH
 			end
 		else
 			local t, b
@@ -170,16 +171,16 @@ function Constraint:get()
 				-- Bottom orientation
 				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
 
-				if self.inTop then
-					b = e2y + e2h - self.marginH
+				if self.inBottom then
+					b = e2y + e2h - self.marginH - h
 				else
-					b = e2y - self.marginH
+					b = e2y - self.marginH - h
 				end
 			end
 
 			if t ~= nil and b ~= nil then
 				-- Vertically centered
-				y = (t + b - h) / 2
+				y = mix(t, b, self.biasVert)
 			else
 				y = t or b
 			end
@@ -253,6 +254,22 @@ function Constraint:size(width, height)
 	return self
 end
 
+---Set the constraint bias. By default, for fixed width/height, the position are centered around (bias 0.5).
+---@param horz number Horizontal bias, real value between 0..1 inclusive.
+---@param vert number Vertical bias, real value between 0..1 inclusive.
+---@return NLay.Constraint
+function Constraint:bias(horz, vert)
+	if horz then
+		self.biasHorz = math.min(math.max(horz, 0), 1)
+	end
+
+	if vert then
+		self.biasVert = math.min(math.max(vert, 0), 1)
+	end
+
+	return self
+end
+
 ---@class NLay.MaxConstraint: NLay.BaseConstraint
 ---@field private list NLay.BaseConstraint[]
 local MaxConstraint = {}
@@ -306,6 +323,8 @@ function Inside:constraint(top, left, bottom, right)
 		marginH = 0,
 		w = -1,
 		h = -1,
+		biasHorz = 0.5,
+		biasVert = 0.5,
 		inside = self
 	}, Constraint)
 
@@ -328,7 +347,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.0.0"
+RootConstraint._VERSION = "1.0.1"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -391,3 +410,14 @@ function RootConstraint.max(...)
 end
 
 return RootConstraint
+
+--[[
+Changelog:
+
+v1.0.1: 2021-06-16
+> Bug fixes on certain constraint combination.
+> Added "bias" feature.
+
+v1.0.0: 2021-06-15
+> Initial release.
+]]
