@@ -148,4 +148,4 @@ Features not implemented yet:
 
 * [Bidirectional constraint chain](https://developer.android.com/training/constraint-layout#constrain-chain)
 
-Currently there are no documentation, but it will be added on user demands. All functions are EmmyLua-annotated however.
+Documentation can be found at https://github.com/MikuAuahDark/NPad93/blob/master/doc/NLay.md
