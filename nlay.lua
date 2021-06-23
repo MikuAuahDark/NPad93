@@ -64,7 +64,9 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
-function Constraint:get()
+---@param offx number X offset (default to 0)
+---@param offy number Y offset (default to 0)
+function Constraint:get(offx, offy)
 	if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
 		local x, y, w, h
 
@@ -187,7 +189,7 @@ function Constraint:get()
 		end
 
 		assert(x and y and w and h, "fatal error please report!")
-		return x, y, w, h
+		return x + (offx or 0), y + (offy or 0), w, h
 	else
 		error("insufficient constraint")
 	end
@@ -275,8 +277,10 @@ end
 local MaxConstraint = {}
 MaxConstraint.__index = MaxConstraint
 
+---@param offx number X offset (default to 0)
+---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function MaxConstraint:get()
+function MaxConstraint:get(offx, offy)
 	local minx, miny, maxx, maxy = self.list[1]:get()
 	maxx = maxx + minx
 	maxy = maxy + miny
@@ -289,7 +293,7 @@ function MaxConstraint:get()
 		maxy = math.max(maxy, y + h)
 	end
 
-	return minx, miny, maxx - minx, maxy - miny
+	return minx + (offx or 0), miny + (offy or 0), maxx - minx, maxy - miny
 end
 
 ---This class is not particularly useful other than creating new `NLay.Constraint` object.
@@ -347,13 +351,15 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.0.1"
+RootConstraint._VERSION = "1.0.2"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
+---@param offx number X offset (default to 0)
+---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function RootConstraint:get()
-	return RootConstraint.x, RootConstraint.y, RootConstraint.width, RootConstraint.height
+function RootConstraint:get(offx, offy)
+	return RootConstraint.x + (offx or 0), RootConstraint.y + (offy or 0), RootConstraint.width, RootConstraint.height
 end
 
 ---Update the game window dimensions. Normally all return values from `love.window.getSafeArea` should be passed.
@@ -413,6 +419,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.0.2: 2021-06-23
+> Added "offset" parameter to BaseConstraint:get()
 
 v1.0.1: 2021-06-16
 > Bug fixes on certain constraint combination.

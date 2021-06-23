@@ -60,11 +60,15 @@ Returns: `Constraint` which is derived from `BaseConstraint`.
 
 ************************************************
 
-### `number, number, number, number BaseConstraint:get()`
+### `number, number, number, number BaseConstraint:get([number offx = 0][, number offy = 0])`
 
 Retrieve the positions and the dimensions of specified constraint. Note that `BaseConstraint` is the base class for all constraint in this library.
 
+v1.0.2: If offset is specified, then the resulting position will be added by the offset accordingly
+
 Returns: x coordinate, y coordinate, width, and height of the constraint, **in that order**.
+
+> `offx` and `offy` parameter is added in v1.0.2!
 
 ************************************************
 
