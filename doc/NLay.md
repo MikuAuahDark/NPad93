@@ -100,7 +100,7 @@ Returns: itself
 
 ### `Constraint Constraint:margin(number margin)`
 
-### `Constraint:margin({number marginTop, number marginLeft, number marginBottom, number marginRight})`
+### `Constraint Constraint:margin({number marginTop, number marginLeft, number marginBottom, number marginRight})`
 
 Sets the constraint margin.
 
@@ -122,12 +122,26 @@ Returns: itself
 
 ************************************************
 
-### `Constraint:bias(number horizontalBias, number verticalBias)`
+### `Constraint Constraint:bias(number horizontalBias, number verticalBias)`
 
 Set the constraint bias.
 
 By default, for fixed width/height, the bias is 0.5 which means the position are centered.
 
 If the parameter is `nil`, then it won't set the bias of such parameter.
+
+Returns: itself
+
+Additional Functions in v1.0.3
+-----
+
+************************************************
+
+### `Constraint Constraint:forceIn(boolean force)`
+
+Force the "into" flags to be determined by user even if it may result as invalid constraint. By default some
+"into" flags were determined automatically. Setting this function to true causes NLay not to determine
+the "into" flags automatically. This function is only used for some "niche" cases. You don't have to use this
+almost all the time.
 
 Returns: itself

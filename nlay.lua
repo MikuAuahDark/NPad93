@@ -24,8 +24,10 @@
 local BaseConstraint = {}
 
 ---Compute and retrieve the top-left and the dimensions of layout.
+---@param offx number
+---@param offy number
 ---@return number,number,number,number
-function BaseConstraint:get()
+function BaseConstraint:get(offx, offy)
 end
 
 ---@class NLay.Constraint: NLay.BaseConstraint
@@ -46,6 +48,7 @@ end
 ---@field private biasHorz number
 ---@field private biasVert number
 ---@field private inside NLay.Inside
+---@field private forceIntoFlags boolean
 local Constraint = {}
 Constraint.__index = Constraint
 
@@ -219,7 +222,10 @@ function Constraint:into(top, left, bottom, right)
 	self.inLeft = not not left
 	self.inBottom = not not bottom
 	self.inRight = not not right
-	self:_overrideIntoFlags()
+
+	if not self.forceIntoFlags then
+		self:_overrideIntoFlags()
+	end
 
 	return self
 end
@@ -269,6 +275,15 @@ function Constraint:bias(horz, vert)
 		self.biasVert = math.min(math.max(vert, 0), 1)
 	end
 
+	return self
+end
+
+---Force the "into" flags to be determined by user even if it may result as invalid constraint.
+---This function is used for some "niche" cases. You don't have to use this almost all the time.
+---@param force boolean
+---@return NLay.Constraint
+function Constraint:forceIn(force)
+	self.forceIntoFlags = not not force
 	return self
 end
 
@@ -329,7 +344,8 @@ function Inside:constraint(top, left, bottom, right)
 		h = -1,
 		biasHorz = 0.5,
 		biasVert = 0.5,
-		inside = self
+		inside = self,
+		forceIntoFlags = false
 	}, Constraint)
 
 	-- Deduce "into" flags
@@ -351,7 +367,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.0.2"
+RootConstraint._VERSION = "1.0.3"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -419,6 +435,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.0.3: 2021-06-25
+> Added "Constraint:forceIn" function.
 
 v1.0.2: 2021-06-23
 > Added "offset" parameter to BaseConstraint:get()
