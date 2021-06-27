@@ -27,7 +27,7 @@ local BaseConstraint = {}
 ---@param offx number
 ---@param offy number
 ---@return number,number,number,number
-function BaseConstraint:get(offx, offy)
+function BaseConstraint:get(offx, offy, cache_t)
 end
 
 ---@class NLay.Constraint: NLay.BaseConstraint
@@ -55,11 +55,11 @@ Constraint.__index = Constraint
 ---@param constraint NLay.Constraint
 ---@param target NLay.BaseConstraint
 ---@return number,number,number,number
-local function resolveConstraintSize(constraint, target)
+local function resolveConstraintSize(constraint, target, cache_t)
 	if target == constraint.inside.obj then
-		return constraint.inside:_get()
+		return constraint.inside:_get(cache_t)
 	else
-		return target:get()
+		return target:get(nil, nil, cache_t)
 	end
 end
 
@@ -67,15 +67,24 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
+local next_cache_t = 0
+
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
-function Constraint:get(offx, offy)
-	if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
+function Constraint:get(offx, offy, cache_t)
+	if cache_t == nil then
+		cache_t = next_cache_t
+		next_cache_t = (next_cache_t + 1) % 1e15
+	end
+	if self.cache_t == cache_t then
+	elseif (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
+		self.cache_t = cache_t
+
 		local x, y, w, h
 
 		if self.w == -1 then
 			-- Match parent
-			local px, _, pw, _ = self.inside:_get()
+			local px, _, pw, _ = self.inside:_get(cache_t)
 			x, w = px, pw
 		elseif self.w == 0 then
 			-- Match constraint
@@ -84,7 +93,7 @@ function Constraint:get(offx, offy)
 			end
 
 			-- Left
-			local e1x, _, e1w = resolveConstraintSize(self, self.left)
+			local e1x, _, e1w = resolveConstraintSize(self, self.left, cache_t)
 			if self.inLeft then
 				x = e1x + self.marginX
 			else
@@ -92,7 +101,7 @@ function Constraint:get(offx, offy)
 			end
 
 			-- Right
-			local e2x, _, e2w = resolveConstraintSize(self, self.right)
+			local e2x, _, e2w = resolveConstraintSize(self, self.right, cache_t)
 			if self.inRight then
 				w = e2x + e2w - x - self.marginW
 			else
@@ -104,7 +113,7 @@ function Constraint:get(offx, offy)
 
 			if self.left then
 				-- Left orientation
-				local e1x, _, e1w = resolveConstraintSize(self, self.left)
+				local e1x, _, e1w = resolveConstraintSize(self, self.left, cache_t)
 
 				if self.inLeft then
 					l = e1x + self.marginX
@@ -115,7 +124,7 @@ function Constraint:get(offx, offy)
 
 			if self.right then
 				-- Right orientation
-				local e2x, _, e2w = resolveConstraintSize(self, self.right)
+				local e2x, _, e2w = resolveConstraintSize(self, self.right, cache_t)
 
 				if self.inRight then
 					r = e2x + e2w - self.marginW - w
@@ -134,7 +143,7 @@ function Constraint:get(offx, offy)
 
 		if self.h == -1 then
 			-- Match parent
-			local _, py, _, ph = self.inside:_get()
+			local _, py, _, ph = self.inside:_get(cache_t)
 			y, h = py, ph
 		elseif self.h == 0 then
 			-- Match constraint
@@ -142,7 +151,7 @@ function Constraint:get(offx, offy)
 				error("insufficient constraint for height 0")
 			end
 
-			local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
+			local _, e1y, _, e1h = resolveConstraintSize(self, self.top, cache_t)
 
 			if self.inTop then
 				y = e1y + self.marginY
@@ -150,7 +159,7 @@ function Constraint:get(offx, offy)
 				y = e1y + e1h + self.marginY
 			end
 
-			local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
+			local _, e2y, _, e2h = resolveConstraintSize(self, self.bottom, cache_t)
 
 			if self.inBottom then
 				h = e2y + e2h - y - self.marginH
@@ -163,7 +172,7 @@ function Constraint:get(offx, offy)
 
 			if self.top then
 				-- Top orientation
-				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
+				local _, e1y, _, e1h = resolveConstraintSize(self, self.top, cache_t)
 
 				if self.inTop then
 					t = e1y + self.marginY
@@ -174,7 +183,7 @@ function Constraint:get(offx, offy)
 
 			if self.bottom then
 				-- Bottom orientation
-				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
+				local _, e2y, _, e2h = resolveConstraintSize(self, self.bottom, cache_t)
 
 				if self.inBottom then
 					b = e2y + e2h - self.marginH - h
@@ -192,10 +201,11 @@ function Constraint:get(offx, offy)
 		end
 
 		assert(x and y and w and h, "fatal error please report!")
-		return x + (offx or 0), y + (offy or 0), w, h
+		self.cache_x, self.cache_y, self.cache_w, self.cache_h = x, y, w, h
 	else
 		error("insufficient constraint")
 	end
+	return self.cache_x + (offx or 0), self.cache_y + (offy or 0), self.cache_w, self.cache_h
 end
 
 function Constraint:_overrideIntoFlags()
@@ -295,13 +305,13 @@ MaxConstraint.__index = MaxConstraint
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function MaxConstraint:get(offx, offy)
-	local minx, miny, maxx, maxy = self.list[1]:get()
+function MaxConstraint:get(offx, offy, cache_t)
+	local minx, miny, maxx, maxy = self.list[1]:get(nil, nil, cache_t)
 	maxx = maxx + minx
 	maxy = maxy + miny
 
 	for i = 2, #self.list do
-		local x, y, w, h = self.list[i]:get()
+		local x, y, w, h = self.list[i]:get(nil, nil, cache_t)
 		minx = math.min(minx, x)
 		miny = math.min(miny, y)
 		maxx = math.max(maxx, x + w)
@@ -355,8 +365,8 @@ function Inside:constraint(top, left, bottom, right)
 end
 
 ---@return number,number,number,number
-function Inside:_get()
-	local x, y, w, h = self.obj:get()
+function Inside:_get(cache_t)
+	local x, y, w, h = self.obj:get(nil, nil, cache_t)
 	return x + self.pad[2], y + self.pad[1], w - self.pad[4] - self.pad[2], h - self.pad[3] - self.pad[1]
 end
 
@@ -374,7 +384,7 @@ RootConstraint._LICENSE = "MIT"
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function RootConstraint:get(offx, offy)
+function RootConstraint:get(offx, offy, cache_t)
 	return RootConstraint.x + (offx or 0), RootConstraint.y + (offy or 0), RootConstraint.width, RootConstraint.height
 end
 
