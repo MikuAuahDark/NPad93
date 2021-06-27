@@ -27,7 +27,7 @@ local BaseConstraint = {}
 ---@param offx number
 ---@param offy number
 ---@return number,number,number,number
-function BaseConstraint:get(offx, offy, cache_t)
+function BaseConstraint:get(offx, offy)
 end
 
 ---@class NLay.Constraint: NLay.BaseConstraint
@@ -49,17 +49,22 @@ end
 ---@field private biasVert number
 ---@field private inside NLay.Inside
 ---@field private forceIntoFlags boolean
+---@field private cacheCounter number
+---@field private cacheX number
+---@field private cacheY number
+---@field private cacheW number
+---@field private cacheH number
 local Constraint = {}
 Constraint.__index = Constraint
 
 ---@param constraint NLay.Constraint
 ---@param target NLay.BaseConstraint
 ---@return number,number,number,number
-local function resolveConstraintSize(constraint, target, cache_t)
+local function resolveConstraintSize(constraint, target, _cacheCounter)
 	if target == constraint.inside.obj then
-		return constraint.inside:_get(cache_t)
+		return constraint.inside:_get(_cacheCounter)
 	else
-		return target:get(nil, nil, cache_t)
+		return target:get(nil, nil, _cacheCounter)
 	end
 end
 
@@ -67,145 +72,149 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
-local next_cache_t = 0
+local nextCacheCounter = 0
 
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
-function Constraint:get(offx, offy, cache_t)
-	if cache_t == nil then
-		cache_t = next_cache_t
-		next_cache_t = (next_cache_t + 1) % 1e15
+function Constraint:get(offx, offy, _cacheCounter)
+	if _cacheCounter == nil then
+		_cacheCounter = nextCacheCounter
+		nextCacheCounter = (nextCacheCounter + 1) % 1e15
 	end
-	if self.cache_t == cache_t then
-	elseif (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
-		self.cache_t = cache_t
 
-		local x, y, w, h
+	if self.cacheCounter ~= _cacheCounter then
+		self.cacheCounter = _cacheCounter
 
-		if self.w == -1 then
-			-- Match parent
-			local px, _, pw, _ = self.inside:_get(cache_t)
-			x, w = px, pw
-		elseif self.w == 0 then
-			-- Match constraint
-			if self.left == nil or self.right == nil then
-				error("insufficient constraint for width 0")
-			end
+		if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
 
-			-- Left
-			local e1x, _, e1w = resolveConstraintSize(self, self.left, cache_t)
-			if self.inLeft then
-				x = e1x + self.marginX
-			else
-				x = e1x + e1w + self.marginX
-			end
+			local x, y, w, h
 
-			-- Right
-			local e2x, _, e2w = resolveConstraintSize(self, self.right, cache_t)
-			if self.inRight then
-				w = e2x + e2w - x - self.marginW
-			else
-				w = e2x - x - self.marginW
-			end
-		else
-			local l, r
-			w = self.w
+			if self.w == -1 then
+				-- Match parent
+				local px, _, pw, _ = self.inside:_get(_cacheCounter)
+				x, w = px, pw
+			elseif self.w == 0 then
+				-- Match constraint
+				if self.left == nil or self.right == nil then
+					error("insufficient constraint for width 0")
+				end
 
-			if self.left then
-				-- Left orientation
-				local e1x, _, e1w = resolveConstraintSize(self, self.left, cache_t)
-
+				-- Left
+				local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
 				if self.inLeft then
-					l = e1x + self.marginX
+					x = e1x + self.marginX
 				else
-					l = e1x + e1w + self.marginX
+					x = e1x + e1w + self.marginX
 				end
-			end
 
-			if self.right then
-				-- Right orientation
-				local e2x, _, e2w = resolveConstraintSize(self, self.right, cache_t)
-
+				-- Right
+				local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
 				if self.inRight then
-					r = e2x + e2w - self.marginW - w
+					w = e2x + e2w - x - self.marginW
 				else
-					r = e2x - self.marginW - w
+					w = e2x - x - self.marginW
+				end
+			else
+				local l, r
+				w = self.w
+
+				if self.left then
+					-- Left orientation
+					local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
+
+					if self.inLeft then
+						l = e1x + self.marginX
+					else
+						l = e1x + e1w + self.marginX
+					end
+				end
+
+				if self.right then
+					-- Right orientation
+					local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
+
+					if self.inRight then
+						r = e2x + e2w - self.marginW - w
+					else
+						r = e2x - self.marginW - w
+					end
+				end
+
+				if l ~= nil and r ~= nil then
+					-- Horizontally centered
+					x = mix(l, r, self.biasHorz)
+				else
+					x = l or r
 				end
 			end
 
-			if l ~= nil and r ~= nil then
-				-- Horizontally centered
-				x = mix(l, r, self.biasHorz)
-			else
-				x = l or r
-			end
-		end
+			if self.h == -1 then
+				-- Match parent
+				local _, py, _, ph = self.inside:_get(_cacheCounter)
+				y, h = py, ph
+			elseif self.h == 0 then
+				-- Match constraint
+				if self.bottom == nil or self.top == nil then
+					error("insufficient constraint for height 0")
+				end
 
-		if self.h == -1 then
-			-- Match parent
-			local _, py, _, ph = self.inside:_get(cache_t)
-			y, h = py, ph
-		elseif self.h == 0 then
-			-- Match constraint
-			if self.bottom == nil or self.top == nil then
-				error("insufficient constraint for height 0")
-			end
-
-			local _, e1y, _, e1h = resolveConstraintSize(self, self.top, cache_t)
-
-			if self.inTop then
-				y = e1y + self.marginY
-			else
-				y = e1y + e1h + self.marginY
-			end
-
-			local _, e2y, _, e2h = resolveConstraintSize(self, self.bottom, cache_t)
-
-			if self.inBottom then
-				h = e2y + e2h - y - self.marginH
-			else
-				h = e2y - y - self.marginH
-			end
-		else
-			local t, b
-			h = self.h
-
-			if self.top then
-				-- Top orientation
-				local _, e1y, _, e1h = resolveConstraintSize(self, self.top, cache_t)
+				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
 
 				if self.inTop then
-					t = e1y + self.marginY
+					y = e1y + self.marginY
 				else
-					t = e1y + e1h + self.marginY
+					y = e1y + e1h + self.marginY
 				end
-			end
 
-			if self.bottom then
-				-- Bottom orientation
-				local _, e2y, _, e2h = resolveConstraintSize(self, self.bottom, cache_t)
+				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
 
 				if self.inBottom then
-					b = e2y + e2h - self.marginH - h
+					h = e2y + e2h - y - self.marginH
 				else
-					b = e2y - self.marginH - h
+					h = e2y - y - self.marginH
+				end
+			else
+				local t, b
+				h = self.h
+
+				if self.top then
+					-- Top orientation
+					local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
+
+					if self.inTop then
+						t = e1y + self.marginY
+					else
+						t = e1y + e1h + self.marginY
+					end
+				end
+
+				if self.bottom then
+					-- Bottom orientation
+					local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
+
+					if self.inBottom then
+						b = e2y + e2h - self.marginH - h
+					else
+						b = e2y - self.marginH - h
+					end
+				end
+
+				if t ~= nil and b ~= nil then
+					-- Vertically centered
+					y = mix(t, b, self.biasVert)
+				else
+					y = t or b
 				end
 			end
 
-			if t ~= nil and b ~= nil then
-				-- Vertically centered
-				y = mix(t, b, self.biasVert)
-			else
-				y = t or b
-			end
+			assert(x and y and w and h, "fatal error please report!")
+			self.cacheX, self.cacheY, self.cacheW, self.cacheH = x, y, w, h
+		else
+			error("insufficient constraint")
 		end
-
-		assert(x and y and w and h, "fatal error please report!")
-		self.cache_x, self.cache_y, self.cache_w, self.cache_h = x, y, w, h
-	else
-		error("insufficient constraint")
 	end
-	return self.cache_x + (offx or 0), self.cache_y + (offy or 0), self.cache_w, self.cache_h
+
+	return self.cacheX + (offx or 0), self.cacheY + (offy or 0), self.cacheW, self.cacheH
 end
 
 function Constraint:_overrideIntoFlags()
@@ -305,13 +314,13 @@ MaxConstraint.__index = MaxConstraint
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function MaxConstraint:get(offx, offy, cache_t)
-	local minx, miny, maxx, maxy = self.list[1]:get(nil, nil, cache_t)
+function MaxConstraint:get(offx, offy, _cacheCounter)
+	local minx, miny, maxx, maxy = self.list[1]:get(nil, nil, _cacheCounter)
 	maxx = maxx + minx
 	maxy = maxy + miny
 
 	for i = 2, #self.list do
-		local x, y, w, h = self.list[i]:get(nil, nil, cache_t)
+		local x, y, w, h = self.list[i]:get(nil, nil, _cacheCounter)
 		minx = math.min(minx, x)
 		miny = math.min(miny, y)
 		maxx = math.max(maxx, x + w)
@@ -355,7 +364,12 @@ function Inside:constraint(top, left, bottom, right)
 		biasHorz = 0.5,
 		biasVert = 0.5,
 		inside = self,
-		forceIntoFlags = false
+		forceIntoFlags = false,
+		cacheCounter = -1,
+		cacheX = 0,
+		cacheY = 0,
+		cacheW = 0,
+		cacheH = 0,
 	}, Constraint)
 
 	-- Deduce "into" flags
@@ -365,8 +379,8 @@ function Inside:constraint(top, left, bottom, right)
 end
 
 ---@return number,number,number,number
-function Inside:_get(cache_t)
-	local x, y, w, h = self.obj:get(nil, nil, cache_t)
+function Inside:_get(_cacheCounter)
+	local x, y, w, h = self.obj:get(nil, nil, _cacheCounter)
 	return x + self.pad[2], y + self.pad[1], w - self.pad[4] - self.pad[2], h - self.pad[3] - self.pad[1]
 end
 
@@ -377,14 +391,14 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.0.3"
+RootConstraint._VERSION = "1.0.4"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
 ---@return number,number,number,number
-function RootConstraint:get(offx, offy, cache_t)
+function RootConstraint:get(offx, offy)
 	return RootConstraint.x + (offx or 0), RootConstraint.y + (offy or 0), RootConstraint.width, RootConstraint.height
 end
 
@@ -445,6 +459,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.0.4: 2021-06-27
+> Implemented per-`:get()` value caching.
 
 v1.0.3: 2021-06-25
 > Added "Constraint:forceIn" function.
