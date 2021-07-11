@@ -54,6 +54,7 @@ end
 ---@field private cacheY number
 ---@field private cacheW number
 ---@field private cacheH number
+---@field private tag any
 local Constraint = {}
 Constraint.__index = Constraint
 
@@ -304,6 +305,20 @@ end
 function Constraint:forceIn(force)
 	self.forceIntoFlags = not not force
 	return self
+end
+
+---Tag this constraint with some userdata, like an id, for example.
+---Useful to keep track of constraints when they're rebuilt.
+---@param userdata any
+---@return NLay.Constraint
+function Constraint:tag(userdata)
+	self.tag = userdata
+	return self
+end
+
+---@return any
+function Constraint:getTag()
+	return self.tag
 end
 
 ---@class NLay.MaxConstraint: NLay.BaseConstraint
