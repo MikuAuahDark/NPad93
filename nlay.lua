@@ -330,6 +330,48 @@ function MaxConstraint:get(offx, offy, _cacheCounter)
 	return minx + (offx or 0), miny + (offy or 0), maxx - minx, maxy - miny
 end
 
+---@class NLay.LineConstraint: NLay.BaseConstraint
+---@field private constraint NLay.BaseConstraint | NLay.Inside
+---@field private direction '"horizontal"' | '"vertical"'
+---@field private mode '"percent"' | '"pixel"'
+---@field private offset number
+---@field private flip boolean
+local LineConstraint = {}
+LineConstraint.__index = LineConstraint
+
+function LineConstraint:get(offx, offy, _cacheCounter)
+	offx, offy = offx or 0, offy or 0
+	local x, y, w, h
+
+	if self.constraint.obj then
+		x, y, w, h = self.constraint:_get(_cacheCounter)
+	else
+		x, y, w, h = self.constraint:get(nil, nil, _cacheCounter)
+	end
+
+	if self.direction == "horizontal" then
+		-- Vertical line for horizontal constraint
+		if self.mode == "percent" then
+			-- Interpolate
+			return mix(x, x + w, (self.flip and 1 or 0) + self.offset) + offx, y + offy, 0, h
+		else
+			-- Offset
+			return x + (self.flip and w or 0) + self.offset + offx, y + offy, 0, h
+		end
+	else
+		-- Horizontal line for vertical constraint
+		if self.mode == "percent" then
+			-- Interpolate
+			return x + offx, mix(y, y + h, (self.flip and 1 or 0) + self.offset) + offy, w, 0
+		else
+			-- Offset
+			return x + offx, y + (self.flip and h or 0) + self.offset + offy, w, 0
+		end
+	end
+
+	error("fatal error unreachable code")
+end
+
 ---This class is not particularly useful other than creating new `NLay.Constraint` object.
 ---However it's probably better to cache this object if lots of same constraint creation is done with same
 ---"inside" parameters
@@ -391,7 +433,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.0.4"
+RootConstraint._VERSION = "1.1.0"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -455,10 +497,39 @@ function RootConstraint.max(...)
 	}, MaxConstraint)
 end
 
+---Create new guideline constraint. Horizontal direction creates vertical line with width of 0 for constraint to
+---attach horizontally. Vertical direction creates horizontal line with height of 0 for constraint to attach
+---vertically.
+---@param constraint NLay.BaseConstraint | NLay.Inside
+---@param direction '"horizontal"' | '"vertical"'
+---@param mode '"percent"' | '"pixel"'
+---@param offset number
+---@return NLay.LineConstraint
+function RootConstraint.line(constraint, direction, mode, offset)
+	if direction ~= "horizontal" and direction ~= "vertical" then
+		error("invalid direction")
+	end
+
+	if mode ~= "percent" and mode ~= "pixel" then
+		error("invalid mode")
+	end
+
+	return setmetatable({
+		constraint = constraint,
+		direction = direction,
+		mode = mode,
+		offset = offset,
+		flip = 1/offset < 0
+	}, LineConstraint)
+end
+
 return RootConstraint
 
 --[[
 Changelog:
+
+v1.1.0: 2021-07-11
+> Added guideline constraint, created with NLay.line function.
 
 v1.0.4: 2021-06-27
 > Implemented per-`:get()` value caching.

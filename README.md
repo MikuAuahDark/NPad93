@@ -144,8 +144,6 @@ Features not implemented yet:
 
 * [Aspect ratio size 0 constraint](https://developer.android.com/training/constraint-layout#ratio)
 
-* [Guideline constraint](https://developer.android.com/training/constraint-layout#constrain-to-a-guideline)
-
 * [Bidirectional constraint chain](https://developer.android.com/training/constraint-layout#constrain-chain)
 
 Documentation can be found at https://github.com/MikuAuahDark/NPad93/blob/master/doc/NLay.md
