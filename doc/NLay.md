@@ -145,3 +145,40 @@ the "into" flags automatically. This function is only used for some "niche" case
 almost all the time.
 
 Returns: itself
+
+Additional Functions in v1.1.0
+-----
+
+************************************************
+
+### `LineConstraint NLay.line(constraint BaseConstraint, string direction, string mode, number value)`
+
+### `LineConstraint NLay.line(inside Inside, string direction, string mode, number value)`
+
+Create new [guideline constraint](https://developer.android.com/training/constraint-layout#constrain-to-a-guideline).
+
+Direction can be either `"horizontal"` or `"vertical"`. Horizontal direction creates **vertical line** with width of 0 for
+constraint to attach horizontally. Vertical direction creates **horizontal line** with height of 0 for constraint to attach
+vertically.
+
+Mode can be either `"percent"` or `"pixel"`. If it's percentage, then `value` is bias inside the constraint where 0 denotes top/left
+and 1 denotes bottom/right. If it's pixel, then it behaves identical to "margin". Negative values start the bias/offset from opposing
+direction.
+
+Returns: `LineConstraint` which is derived from `BaseConstraint`
+
+************************************************
+
+### `Constraint Constraint:tag(any data)`
+
+Tag this constraint with user-specific data (i.e. id). Useful to keep track of constraints when they're rebuilt.
+
+Returns: itself
+
+************************************************
+
+### `any Constraint:getTag()`
+
+Retrieve tag data from constraint (or `nil` if this constraint is not tagged). See above function for more information.
+
+Returns: tag data

@@ -545,6 +545,7 @@ Changelog:
 
 v1.1.0: 2021-07-11
 > Added guideline constraint, created with NLay.line function.
+> Added constraint tagging.
 
 v1.0.4: 2021-06-27
 > Implemented per-`:get()` value caching.
