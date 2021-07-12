@@ -54,7 +54,7 @@ end
 ---@field private cacheY number
 ---@field private cacheW number
 ---@field private cacheH number
----@field private tag any
+---@field private userTag any
 local Constraint = {}
 Constraint.__index = Constraint
 
@@ -312,13 +312,13 @@ end
 ---@param userdata any
 ---@return NLay.Constraint
 function Constraint:tag(userdata)
-	self.tag = userdata
+	self.userTag = userdata
 	return self
 end
 
 ---@return any
 function Constraint:getTag()
-	return self.tag
+	return self.userTag
 end
 
 ---@class NLay.MaxConstraint: NLay.BaseConstraint
@@ -448,7 +448,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.1.0"
+RootConstraint._VERSION = "1.1.1"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -542,6 +542,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.1.1: 2021-07-12
+> Fixed Constraint:tag not working.
 
 v1.1.0: 2021-07-11
 > Added guideline constraint, created with NLay.line function.
