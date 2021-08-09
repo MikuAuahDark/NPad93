@@ -276,8 +276,10 @@ function nvec:angleTo(other)
 	return atan2(self.y, self.x)
 end
 
+
 ---@type fun(x: number, y: number): NVec
 nvec.new = __construct
+nvec.is = isVector
 nvec.__index = nvec
 
 if nvec_t then
