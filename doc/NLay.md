@@ -122,7 +122,7 @@ Returns: itself
 
 ************************************************
 
-### `Constraint Constraint:bias(number horizontalBias, number verticalBias)`
+### `Constraint Constraint:bias(number horizontalBias, number verticalBias, boolean unclamped)`
 
 Set the constraint bias.
 
@@ -131,6 +131,8 @@ By default, for fixed width/height, the bias is 0.5 which means the position are
 If the parameter is `nil`, then it won't set the bias of such parameter.
 
 Returns: itself
+
+> `unclamped` parameter is added in v1.1.2!
 
 Additional Functions in v1.0.3
 -----

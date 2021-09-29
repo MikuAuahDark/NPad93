@@ -285,14 +285,23 @@ end
 ---Set the constraint bias. By default, for fixed width/height, the position are centered around (bias 0.5).
 ---@param horz number Horizontal bias, real value between 0..1 inclusive.
 ---@param vert number Vertical bias, real value between 0..1 inclusive.
+---@param unclamped boolean Do not limit bias ratio?
 ---@return NLay.Constraint
-function Constraint:bias(horz, vert)
+function Constraint:bias(horz, vert, unclamped)
 	if horz then
-		self.biasHorz = math.min(math.max(horz, 0), 1)
+		if unclamped then
+			self.biasHorz = horz
+		else
+			self.biasHorz = math.min(math.max(horz, 0), 1)
+		end
 	end
 
 	if vert then
-		self.biasVert = math.min(math.max(vert, 0), 1)
+		if unclamped then
+			self.biasVert = vert
+		else
+			self.biasVert = math.min(math.max(vert, 0), 1)
+		end
 	end
 
 	return self
@@ -448,7 +457,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.1.1"
+RootConstraint._VERSION = "1.1.2"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -542,6 +551,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.1.2: 2021-09-29
+> Added 3rd `unclamped` parameter to Constraint.bias.
 
 v1.1.1: 2021-07-12
 > Fixed Constraint:tag not working.
