@@ -237,7 +237,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 			end
 
 			assert(x and y and w and h, "fatal error please report!")
-			self.cacheX, self.cacheY, self.cacheW, self.cacheH = x, y, w, h
+			self.cacheX, self.cacheY, self.cacheW, self.cacheH = x, y, math.max(w, 0), math.max(h, 0)
 		else
 			error("insufficient constraint")
 		end
@@ -363,6 +363,8 @@ function Constraint:getTag()
 	return self.userTag
 end
 
+---Set the size aspect ratio. The `ratio` is in format `numerator/denominator`, so for aspect ratio
+---of 16:9, pass `16/9`.
 function Constraint:ratio(ratio)
 	if ratio ~= ratio or math.abs(ratio) == math.huge then ratio = 0 end
 	self.aspectRatio = ratio or 0
@@ -591,6 +593,11 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.2.0: 2021-10-11
+> Added aspect ratio size 0 constraint support (see Constraint:ratio() function)
+> Fixed some "into" flag overriding.
+> Prevent negative width/height in Constraint:get()
 
 v1.1.2: 2021-09-29
 > Added 3rd `unclamped` parameter to Constraint.bias.

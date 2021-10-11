@@ -184,3 +184,15 @@ Returns: itself
 Retrieve tag data from constraint (or `nil` if this constraint is not tagged). See above function for more information.
 
 Returns: tag data
+
+Additional Functions in v1.2.0
+-----
+
+************************************************
+
+### `Constraint Constraint:ratio(ratio)`
+
+Set the size aspect ratio. The `ratio` is in format `numerator/denominator`, so for aspect ratio of 16:9, pass `16/9`.
+[Aspect ratio size 0 constraint](https://developer.android.com/training/constraint-layout#ratio) is supported.
+
+Returns: itself
