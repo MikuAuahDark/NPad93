@@ -499,7 +499,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.1.2"
+RootConstraint._VERSION = "1.2.0"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 

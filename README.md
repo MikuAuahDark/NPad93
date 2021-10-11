@@ -83,7 +83,7 @@ NLay is **NOT** full UI library. It merely function as helper on element placeme
 
 Example:
 
-![Example](https://cdn.discordapp.com/attachments/495385205520072704/854188364429262848/unknown.png)
+![Example](https://cdn.discordapp.com/attachments/454274817236140033/897108019584831508/unknown.png)
 
 Code to reproduce rectangle placement above are as follows
 
@@ -120,12 +120,21 @@ function love.draw()
 		:into(false, true)
 		:size(75, 100)
 		:margin({10})
+	local rect5 = insideRoot:constraint(nil, NLay.line(insideRoot, "horizontal", "percent", 0.25), NLay.line(insideRoot, "vertical", "percent", -0.2))
+		:size(96, 96)
+	local rect6 = insideRoot:constraint(rect2, rect2, rect5, rect4)
+		:size(0, 0)
+		:into(false, true, false, false)
+		:margin({10, 0, 10, 10})
+		:ratio(9/16)
 
 	love.graphics.setColor(0.3, 0.3, 0.3)
 	love.graphics.rectangle("fill", rect1:get())
 	love.graphics.rectangle("fill", rect2:get())
 	love.graphics.rectangle("fill", rect3:get())
 	love.graphics.rectangle("fill", rect4:get())
+	love.graphics.rectangle("fill", rect5:get())
+	love.graphics.rectangle("fill", rect6:get())
 
 	local font = love.graphics.getFont()
 	love.graphics.setColor(1, 1, 1)
@@ -133,11 +142,14 @@ function love.draw()
 	drawRectCenter("Rectangle 2", rect2, font)
 	drawRectCenter("Rectangle 3", rect3, font)
 	drawRectCenter("Rectangle 4", rect4, font)
+	drawRectCenter("Rectangle 5", rect5, font)
+	drawRectCenter("Rectangle 6", rect6, font)
 end
 
 function love.resize()
 	NLay.update(love.window.getSafeArea())
 end
+
 ```
 
 Features not implemented yet:
