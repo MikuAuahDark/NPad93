@@ -55,6 +55,7 @@ end
 ---@field private cacheW number
 ---@field private cacheH number
 ---@field private userTag any
+---@field private aspectRatio number
 local Constraint = {}
 Constraint.__index = Constraint
 
@@ -87,14 +88,27 @@ function Constraint:get(offx, offy, _cacheCounter)
 		self.cacheCounter = _cacheCounter
 
 		if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
-
 			local x, y, w, h
+			local width, height = self.w, self.h
+			local zerodim = false
 
-			if self.w == -1 then
+			-- Resolve aspect ratio part 1
+			if self.aspectRatio ~= 0 then
+				if width == 0 and height ~= 0 then
+					height = width / self.aspectRatio
+				elseif width ~= 0 and height == 0 then
+					width = height * self.aspectRatio
+				else
+					zerodim = width == 0 and height == 0
+				end
+			end
+
+			if width == -1 then
 				-- Match parent
 				local px, _, pw, _ = self.inside:_get(_cacheCounter)
-				x, w = px, pw
-			elseif self.w == 0 then
+				--x, w = px, pw
+				x, width = px, pw
+			elseif width == 0 then
 				-- Match constraint
 				if self.left == nil or self.right == nil then
 					error("insufficient constraint for width 0")
@@ -111,13 +125,52 @@ function Constraint:get(offx, offy, _cacheCounter)
 				-- Right
 				local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
 				if self.inRight then
-					w = e2x + e2w - x - self.marginW
+					width = e2x + e2w - x - self.marginW
 				else
-					w = e2x - x - self.marginW
+					width = e2x - x - self.marginW
 				end
-			else
+			end
+
+			if height == -1 then
+				-- Match parent
+				local _, py, _, ph = self.inside:_get(_cacheCounter)
+				y, h = py, ph
+			elseif height == 0 then
+				-- Match constraint
+				if self.bottom == nil or self.top == nil then
+					error("insufficient constraint for height 0")
+				end
+
+				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
+
+				if self.inTop then
+					y = e1y + self.marginY
+				else
+					y = e1y + e1h + self.marginY
+				end
+
+				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
+
+				if self.inBottom then
+					height = e2y + e2h - y - self.marginH
+				else
+					height = e2y - y - self.marginH
+				end
+			end
+
+			if self.aspectRatio ~= 0 and zerodim then
+				local maxw, maxh = width, height
+				local cw, ch = height * self.aspectRatio, width / self.aspectRatio
+				if cw > maxw then
+					height = ch
+				elseif ch > maxh then
+					width = cw
+				end
+			end
+
+			do
 				local l, r
-				w = self.w
+				w = width
 
 				if self.left then
 					-- Left orientation
@@ -149,34 +202,9 @@ function Constraint:get(offx, offy, _cacheCounter)
 				end
 			end
 
-			if self.h == -1 then
-				-- Match parent
-				local _, py, _, ph = self.inside:_get(_cacheCounter)
-				y, h = py, ph
-			elseif self.h == 0 then
-				-- Match constraint
-				if self.bottom == nil or self.top == nil then
-					error("insufficient constraint for height 0")
-				end
-
-				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
-
-				if self.inTop then
-					y = e1y + self.marginY
-				else
-					y = e1y + e1h + self.marginY
-				end
-
-				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
-
-				if self.inBottom then
-					h = e2y + e2h - y - self.marginH
-				else
-					h = e2y - y - self.marginH
-				end
-			else
+			do
 				local t, b
-				h = self.h
+				h = height
 
 				if self.top then
 					-- Top orientation
@@ -330,6 +358,12 @@ function Constraint:getTag()
 	return self.userTag
 end
 
+function Constraint:ratio(ratio)
+	if ratio ~= ratio or math.abs(ratio) == math.huge then ratio = 0 end
+	self.aspectRatio = ratio or 0
+	return self
+end
+
 ---@class NLay.MaxConstraint: NLay.BaseConstraint
 ---@field private list NLay.BaseConstraint[]
 local MaxConstraint = {}
@@ -436,6 +470,7 @@ function Inside:constraint(top, left, bottom, right)
 		cacheY = 0,
 		cacheW = 0,
 		cacheH = 0,
+		aspectRatio = 0,
 	}, Constraint)
 
 	-- Deduce "into" flags
