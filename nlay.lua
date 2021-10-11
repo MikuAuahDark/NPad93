@@ -247,6 +247,11 @@ function Constraint:get(offx, offy, _cacheCounter)
 end
 
 function Constraint:_overrideIntoFlags()
+	self.inTop = self.inTop or self.inside.obj == self.top
+	self.inLeft = self.inLeft or self.inside.obj == self.left
+	self.inBottom = self.inBottom or self.inside.obj == self.bottom
+	self.inRight = self.inRight or self.inside.obj == self.right
+
 	if self.top == self.bottom and self.top ~= nil then
 		self.inTop = true
 		self.inBottom = true
