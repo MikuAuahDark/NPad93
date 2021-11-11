@@ -555,11 +555,10 @@ end
 ---@vararg NLay.BaseConstraint
 ---@return NLay.MaxConstraint
 function RootConstraint.max(...)
-	local list = {...}
-	assert(#list > 1, "need at least 2 constraint")
+	assert(select("#", ...) > 1, "need at least 2 constraint")
 
 	return setmetatable({
-		list = list
+		list = {...}
 	}, MaxConstraint)
 end
 
