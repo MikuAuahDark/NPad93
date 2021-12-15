@@ -196,3 +196,12 @@ Set the size aspect ratio. The `ratio` is in format `numerator/denominator`, so 
 [Aspect ratio size 0 constraint](https://developer.android.com/training/constraint-layout#ratio) is supported.
 
 Returns: itself
+
+Additional Functions in v1.2.1
+-----
+
+### `LineConstraint LineConstraint:offset(off)`
+
+(Re)-set the line offset previously set from `NLay.line`
+
+Returns: itself

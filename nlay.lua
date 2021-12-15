@@ -399,7 +399,7 @@ end
 ---@field private constraint NLay.BaseConstraint | NLay.Inside
 ---@field private direction '"horizontal"' | '"vertical"'
 ---@field private mode '"percent"' | '"pixel"'
----@field private offset number
+---@field private lineOffset number
 ---@field private flip boolean
 local LineConstraint = {}
 LineConstraint.__index = LineConstraint
@@ -418,23 +418,29 @@ function LineConstraint:get(offx, offy, _cacheCounter)
 		-- Vertical line for horizontal constraint
 		if self.mode == "percent" then
 			-- Interpolate
-			return mix(x, x + w, (self.flip and 1 or 0) + self.offset) + offx, y + offy, 0, h
+			return mix(x, x + w, (self.flip and 1 or 0) + self.lineOffset) + offx, y + offy, 0, h
 		else
 			-- Offset
-			return x + (self.flip and w or 0) + self.offset + offx, y + offy, 0, h
+			return x + (self.flip and w or 0) + self.lineOffset + offx, y + offy, 0, h
 		end
 	else
 		-- Horizontal line for vertical constraint
 		if self.mode == "percent" then
 			-- Interpolate
-			return x + offx, mix(y, y + h, (self.flip and 1 or 0) + self.offset) + offy, w, 0
+			return x + offx, mix(y, y + h, (self.flip and 1 or 0) + self.lineOffset) + offy, w, 0
 		else
 			-- Offset
-			return x + offx, y + (self.flip and h or 0) + self.offset + offy, w, 0
+			return x + offx, y + (self.flip and h or 0) + self.lineOffset + offy, w, 0
 		end
 	end
 
 	error("fatal error unreachable code")
+end
+
+-- (Re)-set the line offset.
+function LineConstraint:offset(off)
+	self.lineOffset = off + 0
+	return self
 end
 
 ---This class is not particularly useful other than creating new `NLay.Constraint` object.
@@ -499,7 +505,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.2.0"
+RootConstraint._VERSION = "1.2.1"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -583,7 +589,7 @@ function RootConstraint.line(constraint, direction, mode, offset)
 		constraint = constraint,
 		direction = direction,
 		mode = mode,
-		offset = offset,
+		lineOffset = offset,
 		flip = 1/offset < 0
 	}, LineConstraint)
 end
@@ -592,6 +598,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.2.1: 2021-12-15
+> Added LineConstraint:offset()
 
 v1.2.0: 2021-10-11
 > Added aspect ratio size 0 constraint support (see Constraint:ratio() function)
