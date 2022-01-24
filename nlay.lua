@@ -74,6 +74,58 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
+local function resolveWidthSize0(self, _cacheCounter)
+	local x, width
+
+	if self.left == nil or self.right == nil then
+		error("insufficient constraint for width 0")
+	end
+
+	-- Left
+	local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
+	if self.inLeft then
+		x = e1x + self.marginX
+	else
+		x = e1x + e1w + self.marginX
+	end
+
+	-- Right
+	local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
+	if self.inRight then
+		width = e2x + e2w - x - self.marginW
+	else
+		width = e2x - x - self.marginW
+	end
+
+	return x, width
+end
+
+local function resolveHeightSize0(self, _cacheCounter)
+	local y, height
+
+	if self.bottom == nil or self.top == nil then
+		error("insufficient constraint for height 0")
+	end
+
+	local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
+
+	if self.inTop then
+		y = e1y + self.marginY
+	else
+		y = e1y + e1h + self.marginY
+	end
+
+	local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
+
+	if self.inBottom then
+		height = e2y + e2h - y - self.marginH
+	else
+		height = e2y - y - self.marginH
+	end
+
+	return y, height
+end
+
 local nextCacheCounter = 0
 
 ---@param offx number X offset (default to 0)
@@ -95,40 +147,31 @@ function Constraint:get(offx, offy, _cacheCounter)
 			-- Resolve aspect ratio part 1
 			if self.aspectRatio ~= 0 then
 				if width == 0 and height ~= 0 then
-					height = width / self.aspectRatio
-				elseif width ~= 0 and height == 0 then
 					width = height * self.aspectRatio
+				elseif width ~= 0 and height == 0 then
+					height = width / self.aspectRatio
 				else
 					zerodim = width == 0 and height == 0
+				end
+			end
+
+			if zerodim then
+				if self.top and self.bottom then
+					height = select(2, resolveHeightSize0(self, _cacheCounter))
+					width = height
+				elseif self.left and self.right then
+					width = select(2, resolveWidthSize0(self, _cacheCounter))
+					height = width
 				end
 			end
 
 			if width == -1 then
 				-- Match parent
 				local px, _, pw, _ = self.inside:_get(_cacheCounter)
-				--x, w = px, pw
 				x, width = px, pw
 			elseif width == 0 then
 				-- Match constraint
-				if self.left == nil or self.right == nil then
-					error("insufficient constraint for width 0")
-				end
-
-				-- Left
-				local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
-				if self.inLeft then
-					x = e1x + self.marginX
-				else
-					x = e1x + e1w + self.marginX
-				end
-
-				-- Right
-				local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
-				if self.inRight then
-					width = e2x + e2w - x - self.marginW
-				else
-					width = e2x - x - self.marginW
-				end
+				x, width = resolveWidthSize0(self, _cacheCounter)
 			end
 
 			if height == -1 then
@@ -137,25 +180,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 				y, h = py, ph
 			elseif height == 0 then
 				-- Match constraint
-				if self.bottom == nil or self.top == nil then
-					error("insufficient constraint for height 0")
-				end
-
-				local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
-
-				if self.inTop then
-					y = e1y + self.marginY
-				else
-					y = e1y + e1h + self.marginY
-				end
-
-				local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
-
-				if self.inBottom then
-					height = e2y + e2h - y - self.marginH
-				else
-					height = e2y - y - self.marginH
-				end
+				y, height = resolveHeightSize0(self, _cacheCounter)
 			end
 
 			if self.aspectRatio ~= 0 and zerodim then
@@ -505,7 +530,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.2.1"
+RootConstraint._VERSION = "1.2.2"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -598,6 +623,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.2.2: 2022-01-24
+> Fixed aspect ratio logic
 
 v1.2.1: 2021-12-15
 > Added LineConstraint:offset()
