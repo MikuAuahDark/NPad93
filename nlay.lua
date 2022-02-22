@@ -1,6 +1,6 @@
 -- NPad's Layouting Library, based on ConstraintLayout
 --
--- Copyright (c) 2021 Miku AuahDark
+-- Copyright (c) 2022 Miku AuahDark
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the "Software"),
@@ -156,12 +156,29 @@ function Constraint:get(offx, offy, _cacheCounter)
 			end
 
 			if zerodim then
+				local resolvedWidth, resolvedHeight
+
+				if self.left and self.right then
+					resolvedWidth = select(2, resolveWidthSize0(self, _cacheCounter))
+				end
+
 				if self.top and self.bottom then
-					height = select(2, resolveHeightSize0(self, _cacheCounter))
-					width = height
-				elseif self.left and self.right then
-					width = select(2, resolveWidthSize0(self, _cacheCounter))
-					height = width
+					resolvedHeight = select(2, resolveHeightSize0(self, _cacheCounter))
+				end
+
+				if resolvedWidth or resolvedHeight then
+					if resolvedWidth and resolvedHeight then
+						if resolvedWidth/resolvedHeight > self.aspectRatio then
+							-- h / ratio, h
+							width, height = resolvedHeight / self.aspectRatio, resolvedHeight
+						else
+							width, height = resolvedWidth, resolvedWidth * self.aspectRatio
+						end
+					elseif resolvedWidth then
+						width, height = resolvedWidth, resolvedWidth
+					elseif resolvedHeight then
+						width, height = resolvedHeight, resolvedHeight
+					end
 				end
 			end
 
@@ -530,7 +547,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.2.2"
+RootConstraint._VERSION = "1.2.3"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -623,6 +640,9 @@ return RootConstraint
 
 --[[
 Changelog:
+
+v1.2.3: 2022-02-18
+> Fixed aspect ratio logic again
 
 v1.2.2: 2022-01-24
 > Fixed aspect ratio logic
