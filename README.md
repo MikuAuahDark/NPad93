@@ -157,3 +157,10 @@ Features not implemented yet:
 * [Bidirectional constraint chain](https://developer.android.com/training/constraint-layout#constrain-chain)
 
 Documentation can be found at https://github.com/MikuAuahDark/NPad93/blob/master/doc/NLay.md
+
+NAMI
+-----
+
+**N**Pad **A**udio **M**etadata **I**nspector
+
+A file-based audio metadata reader for your custom user tracks needs. **Work-in-progress!**
