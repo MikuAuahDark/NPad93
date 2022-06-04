@@ -64,7 +64,7 @@ Returns: `Constraint` which is derived from `BaseConstraint`.
 
 Retrieve the positions and the dimensions of specified constraint. Note that `BaseConstraint` is the base class for all constraint in this library.
 
-v1.0.2: If offset is specified, then the resulting position will be added by the offset accordingly
+**v1.0.2**: If offset is specified, then the resulting position will be added by the offset accordingly
 
 Returns: x coordinate, y coordinate, width, and height of the constraint, **in that order**.
 
@@ -111,14 +111,21 @@ Returns: itself
 
 ************************************************
 
-### `Constraint Constraint:size(number width, number height)`
+### `Constraint Constraint:size(number width, number height, string modeW, string modeH)`
 
 Sets the constraint width and height.
 
 If width/height is 0, it will calculate it based on the other connected constraint. If it's -1, then it will use parent's width/height minus padding.
-Otherwise it will try to place the constraint based on the bias (see below)
+Otherwise it will try to place the constraint based on the bias (see function below).
+
+**v1.3.0**: `modeW` (for `width`) and `modeH` (for `height`) changes how the size calculation work. If it's `"pixel"` then the specified `width` and
+`height` are absolute value which matches the v1.2.x and earlier. If it's `"percent"` then the actual dimensions is determined by performing "size 0"
+resolve then the resulting size is multiplied by the `width` and `height`. The default value for `modeW` and `modeH` is `"pixel"` to allow existing
+codes to work.
 
 Returns: itself
+
+> `modeW` and `modeH` parameter is added in v1.3.0!
 
 ************************************************
 
@@ -205,3 +212,105 @@ Additional Functions in v1.2.1
 (Re)-set the line offset previously set from `NLay.line`
 
 Returns: itself
+
+Additional Functions in v1.3.0
+-----
+
+************************************************
+
+### `table NLay.batchGet(BaseConstraint...)`
+
+Performs batched retrieval of constraint values, improves performance when resolving different constraints with
+identical attached constraints.
+
+Returns: table of numbers in form of `{x1, y1, w1, h1, x2, y2, w2, h2, ..., xn, yn, wn, hn}`
+
+************************************************
+
+### `Grid NLay.grid(Constraint constraint, integer nrows, integer ncols, table settings)`
+
+Create new grid layout using the constraint `constraint` as the base.
+
+The `settings` table may contain these fields:
+
+* `hspacing` Horizontal spacing of the cell. (number)
+
+* `vspacing` Vertical spacing of the cell. (number)
+
+* `spacing` Spacing of the cell. `hspacing` and `vspacing` takes precedence if it's specified. (number)
+
+* `hspacingfl` Should the horizontal spacing applies before the first and after the last columm? (boolean)
+
+* `vspacingfl` Should the vertical spacing applies before the first and after the last row? (boolean)
+
+* `spacingfl` Should the spacing applies before the first and after the last element? `hspacingfl` and `vspacingfl` takes precedence if it's specified. (boolean)
+
+* `cellwidth` Fixed width of single cell. Setting this requires `cellheight` to be specified. (number)
+
+* `cellheight` Fixed height of single cell. Setting this requires `cellwidth` to be specified. (number)
+
+Both `cellwidth` and `cellheight` **must** be specified **or not** specified at all. Specifying both result in "fixed" mode where `constraint`
+must be `Constraint` instead of `BaseConstraint` and the `Grid` object takes the ownership of the `constraint`.
+
+Returns: `Grid` object.
+
+************************************************
+
+### `GridCellConstraint Grid:get(number row, number column)`
+
+Retrieve `GridCellConstraint` at specified row and column. `GridCellConstraint` implements `BaseConstraint`.
+
+> First call to this function may be slower _slightly_ as the object is being created on-demand.
+
+Returns: `GridCellConstraint` object.
+
+************************************************
+
+### `Grid Grid:spacing(number horizontal, number vertical, boolean horizontalFL, boolean verticalFL)`
+
+Change the spacing of each cell.
+
+For the last two parameters, it determines if the spacing should be applied before the first and after the last element. Thus,
+
+* If `horizontalFL` is set, spacing is applied before the first column and after the last column.
+
+* If `verticalFL` is set, spacing is applied before the first row and after the last row.
+
+An example how the "FL"-suffix parameter affects the spacing can be seen in here: https://imgur.com/a/2PytQSd
+
+Returns: itself
+
+************************************************
+
+### `Grid Grid:cellSize(number width, number height)
+
+Set the cell size of the grid, excluding spacing. This function only takes effect on fixed mode described earlier,
+otherwise it does nothing.
+
+Returns: itself
+
+************************************************
+
+### `Grid Grid:foreach(function func(GridCellConstraint constraint, number row, number col))`
+
+Call a function for each `GridCellConstraint` in the grid. That's it, this function is called `row * col` times.
+
+> This initializes all the `GridCellConstraint` in this grid, which may slow.
+
+Returns: itself
+
+************************************************
+
+### `boolean Grid:isFixed()`
+
+Returns: Is the grid in dynamic mode (`false`) or fixed mode (`true`)?
+
+************************************************
+
+### `number,number Grid:getCellDimensions()`
+
+Retrieve the dimensions of a single cell.
+
+> On dynamic mode, this function resolve the constraint used to base the grid, so use with care!
+
+Returns: width and height of a single cell.

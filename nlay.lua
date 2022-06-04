@@ -126,15 +126,49 @@ local function resolveHeightSize0(self, _cacheCounter)
 	return y, height
 end
 
+local function isPercentMode(str, name)
+	if str == "percent" then
+		return true
+	elseif str == "pixel" then
+		return false
+	else
+		error("invalid \""..name.."\" size mode (\"absolute\" or \"relative\" expected)", 2)
+	end
+end
+
 local nextCacheCounter = 0
+
+local function incrementCacheCounter(cc)
+	if cc == nil then
+		cc = nextCacheCounter
+		nextCacheCounter = (nextCacheCounter + 1) % 1e15
+	end
+
+	return cc
+end
+
+---@generic T
+---@param ... T
+---@return T
+local function selectDefault(...)
+	local value
+
+	for i = 1, select("#", ...) do
+		local v = select(i, ...)
+
+		if v ~= nil then
+			value = v
+			break
+		end
+	end
+
+	return value
+end
 
 ---@param offx number X offset (default to 0)
 ---@param offy number Y offset (default to 0)
 function Constraint:get(offx, offy, _cacheCounter)
-	if _cacheCounter == nil then
-		_cacheCounter = nextCacheCounter
-		nextCacheCounter = (nextCacheCounter + 1) % 1e15
-	end
+	_cacheCounter = incrementCacheCounter(_cacheCounter)
 
 	if self.cacheCounter ~= _cacheCounter then
 		self.cacheCounter = _cacheCounter
@@ -143,6 +177,15 @@ function Constraint:get(offx, offy, _cacheCounter)
 			local x, y, w, h
 			local width, height = self.w, self.h
 			local zerodim = false
+
+			-- Convert percent values to pixel values
+			if self.relW then
+				width = select(2, resolveWidthSize0(self, _cacheCounter)) * self.w
+			end
+
+			if self.relH then
+				height = select(2, resolveHeightSize0(self, _cacheCounter)) * self.h
+			end
 
 			-- Resolve aspect ratio part 1
 			if self.aspectRatio ~= 0 then
@@ -346,13 +389,20 @@ end
 
 ---Set the size of constraint. If width/height is 0, it will calculate it based on the other connected constraint.
 ---If it's -1, then it will use parent's width/height minus padding.
+---
+---"percent" width requires left and right constraint attached. "percent" height requires top and bottom constraint
+---attached. Both defaults to "pixel" if not specified, which ensure older code works without modification.
 ---@param width number Constraint width.
 ---@param height number Constraint height.
+---@param modeW '"percent"' | '"pixel"'
+---@param modeH '"percent"' | '"pixel"'
 ---@return NLay.Constraint
-function Constraint:size(width, height)
+function Constraint:size(width, height, modeW, modeH)
 	assert(width >= 0 or width == -1, "invalid width")
 	assert(height >= 0 or height == -1, "invalid height")
 	self.w, self.h = width, height
+	self.relW = isPercentMode(modeW or "pixel", "width")
+	self.relH = isPercentMode(modeH or "pixel", "height")
 
 	return self
 end
@@ -485,6 +535,133 @@ function LineConstraint:offset(off)
 	return self
 end
 
+---@class NLay.GridCellConstraint: NLay.BaseConstraint
+---@field private context NLay.Grid
+---@field private x0 integer
+---@field private y0 integer
+local GridCellConstraint = {}
+GridCellConstraint.__index = GridCellConstraint
+
+---@param offx number
+---@param offy number
+---@return number,number,number,number
+function GridCellConstraint:get(offx, offy, _cacheCounter)
+	local x, y, w, h = self.context:_resolveCell(self.x0, self.y0, _cacheCounter)
+	return x + (offx or 0), y + (offy or 0), w, h
+end
+
+---@class NLay.Grid
+---@field private constraint NLay.Constraint
+---@field private list NLay.GridCellConstraint[]
+---@field private rows integer
+---@field private cols integer
+---@field private hspacing number
+---@field private vspacing number
+---@field private hfl boolean
+---@field private vfl boolean
+---@field private cellW number
+---@field private cellH number
+---@field private cacheCounter integer
+local Grid = {}
+Grid.__index = Grid
+
+---Retrieve GridCellConstraint at specified rows and columns.
+---@param row integer Row number from 1 to max rows inclusive.
+---@param col integer Column number from 1 to max columns inclusive.
+function Grid:get(row, col)
+	local constraint = self.list[(row - 1) * self.cols + col]
+
+	if not constraint then
+		constraint = setmetatable({
+			context = self,
+			x0 = col - 1,
+			y0 = row - 1
+		}, GridCellConstraint)
+		self.list[(row - 1) * self.cols + col] = constraint
+	end
+
+	return constraint
+end
+
+function Grid:spacing(h, v, hfl, vfl)
+	self.hspacing = h or self.hspacing
+	self.vspacing = v or self.vspacing
+
+	if hfl ~= nil then
+		self.hfl = not not hfl
+	end
+
+	if vfl ~= nil then
+		self.vfl = not not vfl
+	end
+
+	return self
+end
+
+---Calls a function for each grid cell constraint.
+---
+---NOTE: This initializes all the grid cell constraint in the list, which may slow.
+---@param func fun(constraint:NLay.GridCellConstraint,row:integer,col: integer,...)
+function Grid:foreach(func, ...)
+	for y = 1, self.rows do
+		for x = 1, self.cols do
+			func(self:get(y, x), y, x, ...)
+		end
+	end
+
+	return self
+end
+
+---Set fixed grid cell size.
+---
+---On dynamic mode, this function does nothing.
+function Grid:cellSize(width, height)
+	if self:isFixed() then
+		self.cellW, self.cellH = width or self.cellW, height or self.cellH
+		self:_updateSize()
+	end
+
+	return self
+end
+
+---Is the grid in dynamic mode or fixed mode?
+---
+---Dynamic mode means the cell size is calculated on-the-fly.
+function Grid:isFixed()
+	return not not (self.cellW or self.cellH)
+end
+
+---Retrieve dimensions of a single cell.
+---
+---NOTE: On dynamic mode, this function resolve the whole constraint so use with care!
+---@return number,number
+function Grid:getCellDimensions(_cacheCounter)
+	local w, h = select(3,self:_resolveCell(0, 0, _cacheCounter))
+	return w, h
+end
+
+function Grid:_updateSize()
+	local width = self.hspacing * (self.cols + (self.hfl and 1 or -1)) + self.cellW * self.cols
+	local height = self.vspacing * (self.rows + (self.vfl and 1 or -1)) + self.cellH * self.rows
+	self.constraint:size(width, height)
+end
+
+function Grid:_resolveCell(x, y, cc)
+	-- x and y must be 0-based
+	local xc, yc, w, h = self.constraint:get(0, 0, cc)
+	if self.cellW and self.cellH then
+		w, h = self.cellW, self.cellH
+	else
+		local cellW = (w - self.hspacing * (self.cols + (self.hfl and 1 or -1))) / self.cols
+		local cellH = (h - self.vspacing * (self.rows + (self.vfl and 1 or -1))) / self.rows
+		w, h = cellW, cellH
+	end
+
+	local xp = (x + (self.hfl and 1 or 0)) * self.hspacing + x * w
+	local yp = (y + (self.vfl and 1 or 0)) * self.vspacing + y * h
+	return xp + xc, yp + yc, w, h
+end
+
 ---This class is not particularly useful other than creating new `NLay.Constraint` object.
 ---However it's probably better to cache this object if lots of same constraint creation is done with same
 ---"inside" parameters
@@ -516,6 +693,8 @@ function Inside:constraint(top, left, bottom, right)
 		marginH = 0,
 		w = -1,
 		h = -1,
+		relW = false,
+		relH = false,
 		biasHorz = 0.5,
 		biasVert = 0.5,
 		inside = self,
@@ -547,7 +726,7 @@ RootConstraint.x = 0
 RootConstraint.y = 0
 RootConstraint.width = 800
 RootConstraint.height = 600
-RootConstraint._VERSION = "1.2.3"
+RootConstraint._VERSION = "1.3.0"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
@@ -636,10 +815,102 @@ function RootConstraint.line(constraint, direction, mode, offset)
 	}, LineConstraint)
 end
 
+---Performs batched retrieval of constraint values, improves performance when resolving
+---different constraints with identical attached constraints.
+---@param ... NLay.BaseConstraint|number Constraint object followed by its x and y offset. The offsets are required, pass 0 if necessary.
+---@return number[] @Interleaved resolved constraint values {x1, y1, w1, h1, ..., xn, yn, wn, hn}
+function RootConstraint.batchGet(...)
+	local count = select("#", ...)
+	assert(count % 3 == 0, "invalid amount of values passed")
+
+	local values = {}
+	local cc = incrementCacheCounter()
+
+	for i = 1, count, 3 do
+		local constraint = select(i, ...)
+		local offx, offy = select(i + 1, ...), select(i + 2, ...)
+
+		local x, y, w, h = constraint:get(offx or 0, offy or 0, cc)
+		values[#values + 1] = x
+		values[#values + 1] = y
+		values[#values + 1] = w
+		values[#values + 1] = h
+	end
+
+	return values
+end
+
+---@class NLay.GridSetting
+---@field public hspacing number Horizontal spacing of the cell
+---@field public vspacing number Vertical spacing of the cell
+---@field public spacing number Spacing of the cell. `hspacing` and `vspacing` takes precedence.
+---@field public hspacingfl boolean Should the horizontal spacing applies before the first and after the last columm?
+---@field public vspacingfl boolean Should the vertical spacing applies before the first and after the last row?
+---@field public spacingfl boolean Should the spacing applies before the first and after the last element? `hspacingfl` and `vspacingfl` takes precedence.
+---@field public cellwidth number Fixed width of single cell. Setting this requires `cellheight` to be specified.
+---@field public cellheight number Fixed height of single cell. Setting this requires `cellwidth` to be specified.
+
+---Create new grid object.
+---
+---When fixed size mode is used, the Grid object will take the ownership of the constraint.
+---@param constraint NLay.Constraint
+---@param nrows integer
+---@param ncols integer
+---@param settings NLay.GridSetting
+function RootConstraint.grid(constraint, nrows, ncols, settings)
+	settings = settings or {}
+	local vspace = math.max(selectDefault(settings.vspacing, settings.spacing, 0), 0)
+	local hspace = math.max(selectDefault(settings.hspacing, settings.spacing, 0), 0)
+	local vspacefl = selectDefault(settings.vspacingfl, settings.spacingfl, false)
+	local hspacefl = selectDefault(settings.hspacingfl, settings.spacingfl, false)
+
+	local cwidth, cheight
+
+	if settings.cellwidth or settings.cellheight then
+		cwidth = math.max(assert(settings.cellwidth, "missing fixed width"), 0)
+		cheight = math.max(assert(settings.cellheight, "missing fixed height"), 0)
+	end
+
+	-- Prepopulate table
+	local table = {}
+
+	for _ = 1, nrows * ncols do
+		table[#table + 1] = false
+	end
+
+	local obj = setmetatable({
+		constraint = constraint,
+		vspacing = vspace,
+		hspacing = hspace,
+		vfl = vspacefl,
+		hfl = hspacefl,
+		cellW = cwidth,
+		cellH = cheight,
+		rows = nrows,
+		cols = ncols,
+		list = table,
+		cacheCounter = -1,
+	}, Grid)
+
+	if cwidth and cheight then
+		obj:_updateSize()
+	end
+
+	return obj
+end
+
 return RootConstraint
 
 --[[
 Changelog:
+
+v1.3.0: 2022-06-04
+> Added modeW and modeH parameter to Constraint:size to calculate the size
+either by relative size of the "size 0" constraint ("percent") or by absolute
+value ("pixel"). The default is "pixel", which allows existing code unchanged.
+> Added NLay.batchGet(constraint1, constraint2, ...) to resolve constraints in
+one go, improving performance.
+> Added NLay.grid for grid-based layouting.
 
 v1.2.3: 2022-02-18
 > Fixed aspect ratio logic again
