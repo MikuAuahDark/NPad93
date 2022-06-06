@@ -24,8 +24,8 @@
 local BaseConstraint = {}
 
 ---Compute and retrieve the top-left and the dimensions of layout.
----@param offx number
----@param offy number
+---@param offx? number
+---@param offy? number
 ---@return number,number,number,number
 function BaseConstraint:get(offx, offy)
 end
@@ -165,8 +165,9 @@ local function selectDefault(...)
 	return value
 end
 
----@param offx number X offset (default to 0)
----@param offy number Y offset (default to 0)
+---@param offx? number X offset (default to 0)
+---@param offy? number Y offset (default to 0)
+---@param _cacheCounter? any Internal use only.
 function Constraint:get(offx, offy, _cacheCounter)
 	_cacheCounter = incrementCacheCounter(_cacheCounter)
 
@@ -394,8 +395,8 @@ end
 ---attached. Both defaults to "pixel" if not specified, which ensure older code works without modification.
 ---@param width number Constraint width.
 ---@param height number Constraint height.
----@param modeW '"percent"' | '"pixel"'
----@param modeH '"percent"' | '"pixel"'
+---@param modeW? '"percent"' | '"pixel"'
+---@param modeH? '"percent"' | '"pixel"'
 ---@return NLay.Constraint
 function Constraint:size(width, height, modeW, modeH)
 	assert(width >= 0 or width == -1, "invalid width")
@@ -672,10 +673,10 @@ local Inside = {}
 Inside.__index = Inside
 
 ---Create new `NLay.Constraint` object.
----@param top NLay.BaseConstraint
----@param left NLay.BaseConstraint
----@param bottom NLay.BaseConstraint
----@param right NLay.BaseConstraint
+---@param top? NLay.BaseConstraint
+---@param left? NLay.BaseConstraint
+---@param bottom? NLay.BaseConstraint
+---@param right? NLay.BaseConstraint
 ---@return NLay.Constraint
 function Inside:constraint(top, left, bottom, right)
 	local result = setmetatable({
@@ -755,7 +756,7 @@ end
 
 ---Create new `NLay.Inside` object used to construct `NLay.Constraint`.
 ---@param object NLay.BaseConstraint
----@param padding number|number[]
+---@param padding? number|number[]
 ---@return NLay.Inside
 function RootConstraint.inside(object, padding)
 	padding = padding or 0
