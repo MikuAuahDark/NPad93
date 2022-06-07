@@ -75,6 +75,21 @@ function helper.seek(io, opaque, whence, offset)
 	return io.seek(opaque, whence, offset)
 end
 
+function helper.getcstring(io, opaque)
+	local s = {}
+
+	while true do
+		local b = helper.read(io, opaque, 1)
+		if b and b ~= "\0" then
+			s[#s + 1] = b
+		else
+			break
+		end
+	end
+
+	return table.concat(s)
+end
+
 function helper.getbit(value, bitpos)
 	return math.floor(value / (2 ^ bitpos)) % 1 == 1
 end
@@ -529,6 +544,7 @@ local function parseID3(opaque, header, backend)
 	end
 
 	local metadata = {}
+	local coverArt
 	local full32 = nil
 
 	-- Read ID3 frames
@@ -626,6 +642,16 @@ local function parseID3(opaque, header, backend)
 						metadata.comment = metadata.comment:gsub("\r\n", "\n")
 					end
 				end
+			elseif frame == "APIC" then
+				-- Cover art
+				local encoding = math.min(helper.read(namiStringIO, frameData, 1):byte(), 3)
+				local mime = helper.getcstring(namiStringIO, frameData)
+				local type = helper.read(namiStringIO, frameData, 1)
+				local desc = helper.getcstring(namiStringIO, frameData)
+
+				if type == "\3" and not coverArt then
+					coverArt = helper.read(namiStringIO, frameData)
+				end
 			elseif helper.id3canaccepttext(frame) then
 				local text, index = helper.id3decodetextframe(frame, namiStringIO, frameData)
 				metadata[index] = text
@@ -633,7 +659,7 @@ local function parseID3(opaque, header, backend)
 		end
 	end
 
-	return {metadata = metadata}
+	return {metadata = metadata, coverArt = coverArt}
 end
 
 ---Retrieve audio metadata.
