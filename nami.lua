@@ -91,7 +91,7 @@ function helper.getcstring(io, opaque)
 end
 
 function helper.getbit(value, bitpos)
-	return math.floor(value / (2 ^ bitpos)) % 1 == 1
+	return math.floor(value / (2 ^ bitpos)) % 2 == 1
 end
 
 ---@param str string
@@ -200,7 +200,7 @@ function helper.w1252toutf8(str)
 				result[#result + 1] = new
 			end
 		else
-			b[#b + 1] = str:sub(i, i)
+			result[#result + 1] = str:sub(i, i)
 		end
 	end
 
@@ -303,6 +303,28 @@ function helper.id3validtag(txt)
 	end
 
 	return false
+end
+
+-------------------------------
+--- Vorbis-specific helpers ---
+-------------------------------
+
+helper.vbcommremap = {
+	ALBUMARTIST = "album_artist",
+	TRACKNUMBER = "track",
+	DISCNUMBER = "disc",
+	DESCRIPTION = "comment"
+}
+
+---@param str string
+function helper.vbgetkeyvalue(str)
+	local equals = str:find("=", 1, true)
+	if not equals then return nil end
+
+	local key = str:sub(1, equals - 1)
+	local value = str:sub(equals + 1)
+
+	return helper.vbcommremap[key] or key:lower(), value
 end
 
 --------------------------------
@@ -652,6 +674,76 @@ local function parseID3(opaque, header, backend)
 	return {metadata = metadata, coverArt = coverArt}
 end
 
+---@param opaque any
+---@param backend nami.IO
+---@return nami.Metadata
+local function parseFLAC(opaque, backend)
+	local endOfMetadata = false
+	local foundStreamInfo = false
+
+	local metadata = {}
+	local coverArt
+
+	repeat
+		local blockHeaderData = assert(helper.read(backend, opaque, 1), "Unexpected EOF"):byte()
+		local blockType = blockHeaderData % 128
+		endOfMetadata = helper.getbit(blockHeaderData, 7)
+
+		assert(blockType ~= 127, "Invalid block type")
+
+		-- Sanity check
+		if blockType == 0 then
+			assert(not foundStreamInfo, "Found another STREAMINFO block")
+			foundStreamInfo = true
+		end
+
+		assert(foundStreamInfo, "STREAMINFO block is not first block")
+		local length = helper.str2uint(assert(helper.read(backend, opaque, 3), "Unexpected EOF"), true)
+
+		if blockType == 4 then
+			-- Vorbis comments
+			local vendorLength = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), false)
+			local vendorName = helper.read(backend, opaque, vendorLength) -- unused
+			local metadataCount = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), false)
+
+			for _ = 1, metadataCount do
+				local len = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), false)
+				local data = assert(helper.read(backend, opaque, len), "Unexpected EOF")
+				local k, v = helper.vbgetkeyvalue(data)
+
+				if k and v then
+					metadata[k] = v
+				end
+			end
+		elseif blockType == 6 then
+			-- Picture
+			local type = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), true)
+
+			if type == 3 and not coverArt then
+				local mimeLength = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), true)
+				assert(helper.seek(backend, opaque, "cur", mimeLength), "Unexpected EOF")
+				local descLength = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), true)
+				-- +16 for the unnecessary informations
+				assert(helper.seek(backend, opaque, "cur", descLength + 16), "Unexpected EOF")
+				local imageLength = helper.str2uint(assert(helper.read(backend, opaque, 4), "Unexpected EOF"), true)
+				coverArt = helper.read(backend, opaque, imageLength)
+			else
+				-- Skip
+				if not helper.seek(backend, opaque, "cur", length - 1) then
+					break
+				end
+			end
+		else
+			-- Skip
+			if not helper.seek(backend, opaque, "cur", length) then
+				break
+			end
+		end
+	until endOfMetadata
+
+	return {metadata = metadata, coverArt = coverArt}
+end
+
 ---Retrieve audio metadata.
 ---@param data any The audio data/file.
 ---@param backend? nami.IO IO backend to use (without `probe` function). `nil` means suitable backend will be used.
@@ -680,6 +772,8 @@ function nami.getMetadata(data, backend)
 
 	if header:sub(1, 3) == "ID3" then
 		return parseID3(opaque, header, backend)
+	elseif header == "fLaC" then
+		return parseFLAC(opaque, backend)
 	end
 end
 
