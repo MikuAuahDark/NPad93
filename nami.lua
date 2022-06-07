@@ -33,8 +33,8 @@ local helper = {}
 -----------------------
 
 ---@param str string
----@param be boolean
----@param size integer
+---@param be? boolean
+---@param size? integer
 function helper.str2uint(str, be, size)
 	size = size or #str
 
@@ -55,7 +55,7 @@ end
 ---Normalized read function
 ---@param io nami.IO
 ---@param opaque any
----@param size integer
+---@param size? integer
 function helper.read(io, opaque, size)
 	local result = io.read(opaque, size)
 
@@ -66,12 +66,21 @@ function helper.read(io, opaque, size)
 	return result
 end
 
+---Normalized seek function
+---@param io nami.IO
+---@param opaque any
+---@param whence seekwhence
+---@param offset? integer
+function helper.seek(io, opaque, whence, offset)
+	return io.seek(opaque, whence, offset)
+end
+
 function helper.getbit(value, bitpos)
 	return math.floor(value / (2 ^ bitpos)) % 1 == 1
 end
 
 ---@param str string
----@param be boolean
+---@param be? boolean
 function helper.utf16to8(str, be)
 	if be == nil then
 		-- Determine by BOM
@@ -189,12 +198,12 @@ end
 
 ---@param str string
 ---@param size integer
-function helper.id3str2uint(str, size)
+---@param full32 boolean
+function helper.id3str2uint(str, size, full32)
 	size = size or #str
 
 	local value = 0
-	-- Some non-compilant ID3v2 tagger uses full 32-bit instead of
-	-- ID3-documented synchsafe integer. So check for this!
+	--[[
 	local full32 = false
 
 	for i = 1, size do
@@ -206,6 +215,7 @@ function helper.id3str2uint(str, size)
 			break
 		end
 	end
+	]]
 
 	if full32 then
 		for i = 1, size do
@@ -275,6 +285,21 @@ function helper.id3decodetextframe(frame, backend, opaque)
 	return helper.id3strdecode(encoding:byte(), helper.read(backend, opaque)), index
 end
 
+function helper.id3validframe(txt)
+	if #txt == 4 then
+		for i = 1, 4 do
+			local b = txt:byte(i, i)
+			if b < 65 or b > 90 then
+				return false
+			end
+		end
+
+		return true
+	end
+
+	return false
+end
+
 --------------------------------
 --- Zlib decompress function ---
 --------------------------------
@@ -299,7 +324,7 @@ local luaFileMt = getmetatable(io.stdout)
 local namiLuaIo = {
 	---Read from stream of specified size.
 	---@param opaque any User data returned from probe function.
-	---@param size integer Amount to read or nil for all.
+	---@param size? integer Amount to read or nil for all.
 	---@return string @Readed data, or nil on EOF.
 	read = function(opaque, size)
 		return opaque:read(size or "*a")
@@ -468,10 +493,152 @@ end
 ---@field public metadata table<string, number|string> Audio metadata with normalized keys.
 ---@field public coverArt string Cover art, if available.
 
+---@param opaque any
+---@param header string
+---@param backend nami.IO
+---@return nami.Metadata
+local function parseID3(opaque, header, backend)
+	-- ID3 tag reference can be found here: https://id3.org/id3v2.4.0-structure
+	-- Read ID3v2 header data
+	local version = helper.str2uint(header:sub(4)..assert(helper.read(backend, opaque, 1), "Unexpected EOF"), false)
+	if version >= 255 then
+		error("Invalid ID3 version")
+	end
+
+	local flags = helper.str2uint(assert(helper.read(backend, opaque,  1), "Unexcepted EOF"), false)
+	local dataSize = helper.id3str2uint(assert(helper.read(backend, opaque,  4), "Unexcepted EOF"), nil, false)
+	local dataStream = namiStringIO.probe(assert(helper.read(backend, opaque,  dataSize), "Unexcepted EOF"))
+
+	-- Get ID3v2 important bits
+	local extHeader = helper.getbit(flags, 6)
+
+	if extHeader then
+		-- We don't need extended header for now.
+		local extHeaderSize = helper.id3str2uint(
+			assert(helper.read(namiStringIO, dataStream,  4), "Insufficient ID3 data"), nil, false
+		)
+
+		if version >= 4 then
+			-- In v2.4 the length is +4.
+			extHeaderSize = extHeaderSize - 4
+		end
+
+		assert(extHeaderSize >= 2, "Invalid ID3 extended header size")
+		namiStringIO.seek(dataStream, "cur", extHeaderSize) -- Always success
+		dataSize = dataSize - extHeaderSize - 4
+	end
+
+	local metadata = {}
+	local full32 = nil
+
+	-- Read ID3 frames
+	-- https://id3.org/id3v2.4.0-frames
+	while dataSize > 0 do
+		-- Read frame FourCC
+		local frame = helper.read(namiStringIO, dataStream,  4)
+		if not frame then break end
+
+		-- Read frame size
+		local frameSizeStr = helper.read(namiStringIO, dataStream, 4)
+		if not frameSizeStr then break end
+
+		if full32 == nil then
+			if version == 3 then
+				-- ID3v2.3 uses full 32-bit
+				full32 = true
+			else
+				-- Some non-compilant ID3v2 tagger uses full 32-bit instead of
+				-- ID3v2.4-documented synchsafe integer. So check for this!
+				-- Thanks to FFmpeg source code for the checking idea
+				local size28 = helper.id3str2uint(frameSizeStr, nil, false)
+				local size32 = helper.id3str2uint(frameSizeStr, nil, true)
+
+				if size32 >= 127 then
+					local current = helper.seek(namiStringIO, dataStream, "cur")
+					if helper.seek(namiStringIO, dataStream, "cur", size32 + 2) then
+						-- Try to read tag
+						local tag = helper.read(namiStringIO, dataStream, 4)
+						if tag and helper.id3validframe(tag) then
+							-- Ok, full 32-bit integer is used
+							full32 = true
+						elseif helper.seek(namiStringIO, dataStream, "set", current + 2 + size28) then
+							-- Probably not, use synchsafe but don't assume
+							tag = helper.read(namiStringIO, dataStream, 4)
+							if tag and helper.id3validframe(tag) then
+								-- Ok, synchsafe integer is used
+								full32 = false
+							end
+						end
+					end
+				end
+			end
+		end
+
+		local frameSize = helper.id3str2uint(frameSizeStr, nil, full32)
+
+		-- Read frame flags
+		local frameFlagsStr = helper.read(namiStringIO, dataStream, 2)
+		if not frameSizeStr then break end
+		local frameFlags = helper.str2uint(frameSizeStr, true)
+
+		-- Frame flags
+		local hasGroup = helper.getbit(frameFlags, 6)
+		local isCompressed = helper.getbit(frameFlags, 3)
+		local isEncrypted = helper.getbit(frameFlags, 2)
+		local isUnsynced = helper.getbit(frameFlags, 1)
+		local hasDataLength = helper.getbit(frameFlags, 0)
+
+		if isEncrypted or hasGroup or isCompressed or isUnsynced or hasDataLength then
+			-- FIXME: Support everything except isEncrypted
+			namiStringIO.seek(dataStream, "cur", frameSize)
+		else
+			local frameDataStr = helper.read(namiStringIO, dataStream, frameSize)
+			local frameData = namiStringIO.probe(frameDataStr)
+
+			if frame == "COMM" then
+				-- Comment frame
+				local encoding = math.min(helper.read(namiStringIO, frameData, 1):byte(), 3)
+				local language = helper.read(namiStringIO, frameData, 3) -- unused
+				local commentData = helper.read(namiStringIO, frameData)
+				local actualComment
+
+				if commentData then
+					-- Decode comment data
+					local multiByteCommentData = helper.id3strdecode(encoding, commentData)
+
+					-- Find one null byte
+					local nullpos = multiByteCommentData:find("\0", 1, true)
+
+					if nullpos then
+						actualComment = multiByteCommentData:sub(nullpos + 1)
+					else
+						actualComment = multiByteCommentData
+					end
+
+					if actualComment:sub(-1) == "\0" then
+						actualComment = actualComment:sub(1, -2)
+					end
+
+					metadata.comment = actualComment
+
+					if metadata.comment then
+						-- ID3 says line ending must be in \n
+						metadata.comment = metadata.comment:gsub("\r\n", "\n")
+					end
+				end
+			elseif helper.id3canaccepttext(frame) then
+				local text, index = helper.id3decodetextframe(frame, namiStringIO, frameData)
+				metadata[index] = text
+			end
+		end
+	end
+
+	return {metadata = metadata}
+end
+
 ---Retrieve audio metadata.
 ---@param data any The audio data/file.
----@param backend nami.IO IO backend to use (without `probe` function). `nil` means suitable backend will be used.
----@return nami.Metadata
+---@param backend? nami.IO IO backend to use (without `probe` function). `nil` means suitable backend will be used.
 function nami.getMetadata(data, backend)
 	local opaque
 
@@ -496,114 +663,7 @@ function nami.getMetadata(data, backend)
 	local header = assert(helper.read(backend, opaque, 4), "Unexpected EOF")
 
 	if header:sub(1, 3) == "ID3" then
-		-- ID3 tag reference can be found here: https://id3.org/id3v2.4.0-structure
-		-- Read ID3v2 header data
-		local version = header:sub(4)..assert(helper.read(backend, opaque, 1), "Unexpected EOF")
-		if version:find("\255", 1, true) then
-			error("Invalid ID3 version")
-		end
-
-		local flags = helper.str2uint(assert(helper.read(backend, opaque,  1), "Unexcepted EOF"), false)
-		local dataSize = helper.id3str2uint(assert(helper.read(backend, opaque,  4), "Unexcepted EOF"), nil)
-		local dataStream = namiStringIO.probe(assert(helper.read(backend, opaque,  dataSize), "Unexcepted EOF"))
-
-		-- Get ID3v2 important bits
-		local extHeader = helper.getbit(flags, 6)
-
-		if extHeader then
-			-- We don't need extended header for now.
-			local extHeaderSize = helper.id3str2uint(
-				assert(helper.read(namiStringIO, dataStream,  4), "Insufficient ID3 data"), nil
-			)
-			assert(extHeaderSize >= 6, "Invalid ID3 extended header size")
-			namiStringIO.seek(dataStream, "cur", extHeaderSize - 4) -- Always success
-			dataSize = dataSize - extHeaderSize
-		end
-
-		local metadata = {}
-
-		-- Read ID3 frames
-		-- https://id3.org/id3v2.4.0-frames
-		while dataSize > 0 do
-			-- Read frame FourCC
-			local frame = helper.read(namiStringIO, dataStream,  4)
-			if not frame then break end
-
-			-- Read frame size
-			local frameSizeStr = helper.read(namiStringIO, dataStream, 4)
-			if not frameSizeStr then break end
-			local frameSize = helper.id3str2uint(frameSizeStr)
-
-			-- Read frame flags
-			local frameFlagsStr = helper.read(namiStringIO, dataStream, 2)
-			if not frameSizeStr then break end
-			local frameFlags = helper.str2uint(frameSizeStr, true)
-
-			-- Frame flags
-			local hasGroup = helper.getbit(frameFlags, 6)
-			local isCompressed = helper.getbit(frameFlags, 3)
-			local isEncrypted = helper.getbit(frameFlags, 2)
-			local isUnsynced = helper.getbit(frameFlags, 1)
-			local hasDataLength = helper.getbit(frameFlags, 0)
-
-			if isEncrypted or hasGroup or isCompressed or isUnsynced or hasDataLength then
-				-- FIXME: Support everything except isEncrypted
-				namiStringIO.seek(dataStream, "cur", frameSize)
-			else
-				local frameDataStr = helper.read(namiStringIO, dataStream, frameSize)
-				local frameData = namiStringIO.probe(frameDataStr)
-
-				if frame == "COMM" then
-					-- Comment frame
-					local encoding = math.min(helper.read(namiStringIO, frameData, 1):byte(), 3)
-					local language = helper.read(namiStringIO, frameData, 3) -- unused
-					local commentData = helper.read(namiStringIO, frameData)
-					local actualComment
-
-					-- Separate comments
-					if encoding == 0 or encoding == 3 then
-						-- Find one null byte
-						local nullpos = commentData:find("\0", 1, true)
-
-						if nullpos then
-							actualComment = commentData:sub(nullpos + 1)
-						else
-							actualComment = commentData
-						end
-
-						if actualComment:sub(-1) == "\0" then
-							actualComment = actualComment:sub(1, -2)
-						end
-					elseif encoding == 1 or encoding == 2 then
-						-- Find two null byte
-						local nullpos = commentData:find("\0\0", 1, true)
-
-						if nullpos then
-							actualComment = commentData:sub(nullpos + 2)
-						else
-							actualComment = commentData
-						end
-
-						if actualComment:sub(-2) == "\0\0" then
-							actualComment = actualComment:sub(1, -3)
-						end
-					end
-
-					-- Decode
-					metadata.comment = helper.id3strdecode(encoding, actualComment)
-
-					if metadata.comment then
-						-- ID3 says line ending must be in \n
-						metadata.comment = metadata.comment:gsub("\r\n", "\n")
-					end
-				elseif helper.id3canaccepttext(frame) then
-					local text, index = helper.id3decodetextframe(frame, namiStringIO, frameData)
-					metadata[index] = text
-				end
-			end
-		end
-
-		return {metadata = metadata}
+		return parseID3(opaque, header, backend)
 	end
 end
 
