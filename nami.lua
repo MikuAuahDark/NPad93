@@ -768,12 +768,23 @@ function nami.getMetadata(data, backend)
 		opaque = data
 	end
 
-	local header = assert(helper.read(backend, opaque, 4), "Unexpected EOF")
+	local header = helper.read(backend, opaque, 4)
+	if not header then
+		return nil, "Unexpected EOF"
+	end
+
+	local status, result = false, "Unknown file"
 
 	if header:sub(1, 3) == "ID3" then
-		return parseID3(opaque, header, backend)
+		status, result = pcall(parseID3, opaque, header, backend)
 	elseif header == "fLaC" then
-		return parseFLAC(opaque, backend)
+		status, result = pcall(parseFLAC, opaque, backend)
+	end
+
+	if status and result then
+		return result
+	else
+		return nil, result
 	end
 end
 
