@@ -729,7 +729,7 @@ local function parseFLAC(opaque, backend)
 				coverArt = helper.read(backend, opaque, imageLength)
 			else
 				-- Skip
-				if not helper.seek(backend, opaque, "cur", length - 1) then
+				if not helper.seek(backend, opaque, "cur", length - 4) then
 					break
 				end
 			end
