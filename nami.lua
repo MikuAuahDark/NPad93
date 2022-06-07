@@ -300,11 +300,11 @@ function helper.id3decodetextframe(frame, backend, opaque)
 	return helper.id3strdecode(encoding:byte(), helper.read(backend, opaque)), index
 end
 
-function helper.id3validframe(txt)
+function helper.id3validtag(txt)
 	if #txt == 4 then
 		for i = 1, 4 do
 			local b = txt:byte(i, i)
-			if b < 65 or b > 90 then
+			if (b < 65 or b > 90) and (b < 48 or b > 57) then
 				return false
 			end
 		end
@@ -574,13 +574,13 @@ local function parseID3(opaque, header, backend)
 					if helper.seek(namiStringIO, dataStream, "cur", size32 + 2) then
 						-- Try to read tag
 						local tag = helper.read(namiStringIO, dataStream, 4)
-						if tag and helper.id3validframe(tag) then
+						if tag and helper.id3validtag(tag) then
 							-- Ok, full 32-bit integer is used
 							full32 = true
 						elseif helper.seek(namiStringIO, dataStream, "set", current + 2 + size28) then
 							-- Probably not, use synchsafe but don't assume
 							tag = helper.read(namiStringIO, dataStream, 4)
-							if tag and helper.id3validframe(tag) then
+							if tag and helper.id3validtag(tag) then
 								-- Ok, synchsafe integer is used
 								full32 = false
 							end
