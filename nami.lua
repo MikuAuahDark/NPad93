@@ -218,19 +218,6 @@ function helper.id3str2uint(str, size, full32)
 	size = size or #str
 
 	local value = 0
-	--[[
-	local full32 = false
-
-	for i = 1, size do
-		local v = str:byte(i, i)
-
-		if v >= 128 then
-			-- Non-compilant detected
-			full32 = true
-			break
-		end
-	end
-	]]
 
 	if full32 then
 		for i = 1, size do
@@ -281,6 +268,9 @@ helper.id3textremap = {
 	TPE1 = "artist",
 	TPE2 = "album_artist",
 	TPE3 = "performer",
+	TPOS = "disc",
+	TPUB = "publisher",
+	TRCK = "track",
 	TSSE = "encoder",
 }
 
