@@ -247,7 +247,7 @@ function nvec:mirrorOn(v)
 end
 
 ---@param v NVec
----@return NVec
+---@return number
 function nvec:cross(v)
 	assert(isVector(v), "NVec expected")
 	return self.x * v.y - self.y * v.x
