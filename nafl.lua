@@ -247,10 +247,22 @@ function nafl.getRefreshRate()
 end
 
 ---Activate FPS limiter.
+---
+---There are 3 `mode`s that user can choose from, with the expected `value` parameter:
+---* `"sleep"` - Sleeps the CPU until it reaches the desired FPS. `value` is the target FPS.
+---  **Caveat**: Target FPS may not be 100% guaranteed.
+---* `"lockstep"` - Run the game in lock-step fashion. `love.update` will see at least `1/value`
+---  seconds but _can be higher_. `value` is the target FPS. **Caveat**: `love.timer.getFPS()`
+---  reading will be inaccurate.
+---* `"vblank"` - Wait for specified amount of vblank (which is `1/screen refresh rate` seconds).
+---  `value` is number of vblank to wait (so value of `2` will wait for `2/screen refresh rate`
+---  seconds). **Caveat**: Does not limit FPS fully when vsync is (forcefully) turned off.
+---
+---Calling this function without any parameter turns off the FPS limiter.
 ---@param mode? '"sleep"' | '"lockstep"' | '"vblank"'
 ---@param value? integer
 function nafl.limit(mode, value)
-	if value then
+	if mode and value then
 		assert(mode == "sleep" or mode == "lockstep" or mode == "vblank", "invalid mode")
 		setLimit(value, mode)
 	else

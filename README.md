@@ -164,3 +164,12 @@ NAMI
 **N**Pad **A**udio **M**etadata **I**nspector
 
 A file-based audio metadata reader for your custom user tracks needs. **Work-in-progress!**
+
+NAFL
+-----
+
+**N**Pad **A**dvanced **F**rame **L**imiter
+
+A frame limiter with 3 possible modes that can be switched at runtime.
+
+Full markdown documentation will be written soon. Currently all public functions are annotated.
