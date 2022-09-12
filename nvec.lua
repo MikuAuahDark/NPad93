@@ -28,6 +28,15 @@ local sqrt, rnd, pi = math.sqrt, math.random, math.pi
 local ffi = nil
 
 ---@class NVec
+---@operator add(NVec): NVec
+---@operator add(number): NVec
+---@operator sub(NVec): NVec
+---@operator sub(number): NVec
+---@operator mul(NVec): number
+---@operator mul(number): NVec
+---@operator div(number): NVec
+---@operator div(NVec): NVec
+---@operator unm:NVec
 local nvec = {}
 local nvec_t = nil
 local __construct, isVector
@@ -37,6 +46,9 @@ if rawget(_G, "jit") and jit.status() and package.preload.ffi then
 	ffi = require("ffi")
 	nvec_t = ffi.typeof("struct {double x, y;}")
 
+	---@param x? number
+	---@param y? number
+	---@return NVec
 	function __construct(x, y)
 		return nvec_t(x or 0, y or 0)
 	end
@@ -46,6 +58,8 @@ if rawget(_G, "jit") and jit.status() and package.preload.ffi then
 		return type(a) == "cdata" and ffi.istype(a, nvec_t)
 	end
 else
+	---@param x? number
+	---@param y? number
 	function __construct(x, y)
 		return setmetatable({x = x or 0, y = y or 0}, nvec)
 	end
@@ -277,7 +291,7 @@ function nvec:angleTo(other)
 end
 
 
----@type fun(x: number, y: number): NVec
+---@type fun(x?: number, y?: number): NVec
 nvec.new = __construct
 nvec.is = isVector
 nvec.__index = nvec
@@ -307,4 +321,5 @@ setmetatable(nvec, {
 	end
 })
 
+---@cast nvec +fun(x?:number,y?:number):NVec
 return nvec
