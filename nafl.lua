@@ -23,7 +23,7 @@
 local love = require("love")
 
 local nafl = {
-	_VERSION = "1.0.0",
+	_VERSION = "1.0.1",
 	_AUTHOR = "MikuAuahDark",
 	_LICENSE = "MIT"
 }
@@ -41,6 +41,7 @@ local var = {
 	refreshRate = 0,
 	monkeypatch = true,
 	loveRun = love.run,
+	loveErrhand = love.errorhandler or love.errhand
 }
 
 local loveGetCanvas = love.graphics.getCanvas
@@ -434,6 +435,15 @@ function nafl.run()
 	end
 end
 
+function nafl.errorHandler(msg)
+	if nafl.getBackbufferCanvas() and love.graphics.isActive() then
+		loveSetCanvas()
+	end
+	revertMonkeypatch()
+
+	return var.loveErrhand(msg)
+end
+
 ---Equivalent to `love.graphics.getCanvas` but returns the default canvas when needed.
 function nafl.getCanvas()
 	local c = loveGetCanvas()
@@ -474,8 +484,8 @@ end
 ---* `love.graphics.reset` to `nafl.reset`
 ---
 ---**CAUTION**: This is one-time function. Once disabled, it can't be enabled
----again. This function should be called at your main.lua, before first frame
----is drawn, otherwise the behavior of this function is undefined.
+---again. This function should be called at your main.lua, before `love.load`
+---is called, otherwise the behavior of this function is undefined.
 function nafl.disableMonkeypatch()
 	var.monkeypatch = false
 end
@@ -484,8 +494,8 @@ end
 ---you already written your own `love.run` before loading this library.
 ---
 ---**CAUTION**: This is one-time function. Once disabled, it can't be enabled
----again. This function should be called at your main.lua, before first frame
----is drawn, otherwise the behavior of this function is undefined.
+---again. This function should be called at your main.lua, before `love.load`
+---is called, otherwise the behavior of this function is undefined.
 ---
 ---**NOTE**: Please read `nafl.lua` if you implemented your own `love.run`
 ---and want to integrate this library into your game loop!
@@ -493,13 +503,32 @@ function nafl.disableNAFLRun()
 	love.run = var.loveRun
 end
 
+---Do not replace `love.errorhandler` with NAFL-written `nafl.errorHandler`.
+---Maybe useful if you have written your own `love.errorhandler`, but NAFL
+---error handler only unsets canvas then calls the original LOVE error handler
+---(or the one you wrote if overridden before loading this library)
+---
+---**CAUTION**: This is one-time function. Once disabled, it can't be enabled
+---again. This function should be called at your main.lua, before `love.load`
+---is called, otherwise the behavior of this function is undefined.
+---
+---**NOTE**: Please read `nafl.lua` if you implemented your own `love.run`
+---and want to integrate this library into your game error handler!
+function nafl.disableErrorHandler()
+	love.errorhandler = var.loveErrhand
+end
+
 love.run = nafl.run
+love.errorhandler = nafl.errorHandler
 
 return nafl
 
 --[[
 Changelog:
 vM.m.p: YYYY-MM-DD
+
+v1.0.1: 2022-09-13
+> Override love.errorhandler to unset Canvas and revert monkeypatch.
 
 v1.0.0: 2022-09-09
 > Initial release.
