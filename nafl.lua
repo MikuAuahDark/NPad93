@@ -435,13 +435,18 @@ function nafl.run()
 	end
 end
 
-function nafl.errorHandler(msg)
+---If you written custom error handler, call this on top of your `love.errorhandler`
+---function. This function ensure Canvas are unset and restores monkeypatched LOVE
+---functions.
+---
+---**NOTE**: This is for advanced users. Please see
+---[`love.errorhandler` Wiki page](https://love2d.org/wiki/love.errorhandler) for more
+---information about LOVE error handler loop!
+function nafl.errorHandler()
 	if nafl.getBackbufferCanvas() and love.graphics.isActive() then
 		loveSetCanvas()
 	end
 	revertMonkeypatch()
-
-	return var.loveErrhand(msg)
 end
 
 ---Equivalent to `love.graphics.getCanvas` but returns the default canvas when needed.
@@ -519,7 +524,11 @@ function nafl.disableErrorHandler()
 end
 
 love.run = nafl.run
-love.errorhandler = nafl.errorHandler
+
+function love.errorhandler(msg)
+	nafl.errorHandler()
+	return var.loveErrhand(msg)
+end
 
 return nafl
 
