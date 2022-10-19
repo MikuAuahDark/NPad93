@@ -173,3 +173,17 @@ NAFL
 A frame limiter with 3 possible modes that can be switched at runtime.
 
 Full markdown documentation will be written soon. Currently all public functions are annotated.
+
+NTT
+-----
+**N**Pad **T**ween **T**imer
+
+flux-compatible tween implementation with additional enhancements and restrictions:
+
+* Tweening same variable on same object is forbidden.
+* `:after()` tween no longer started if the parent is stopped. https://github.com/rxi/flux/issues/12
+* Fully annotated using [sumneko's Lua annotation syntax](https://github.com/sumneko/lua-language-server/wiki/Annotations).
+
+For documentation and usage, please see flux repository: https://github.com/rxi/flux
+
+If you want to replace existing flux library, either rename `ntt.lua` to `flux.lua` or replace all `require`s from `flux` to `ntt`.
