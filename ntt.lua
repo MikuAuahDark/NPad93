@@ -25,7 +25,9 @@
 ---@alias ntt.EasingInOut '"quadinout"' | '"cubicinout"' | '"quartinout"' | '"expoinout"' | '"sineinout"' | '"circinout"' | '"backinout"' | '"elasticinout"'
 ---@alias ntt.Easing ntt.EasingIn | ntt.EasingOut | ntt.EasingInOut | '"linear"'
 
----@type table<ntt.Easing, fun(x:number):number>
+---@alias ntt.EasingFunc fun(x:number):number
+
+---@type table<ntt.Easing, ntt.EasingFunc>
 local easing = {
 	linear = function(x) return x end
 }
@@ -75,8 +77,7 @@ end
 ---@class ntt.Tween
 ---@field private completeCallback ntt.InternalCallbackDef[]
 ---@field private delayTime number
----@field private duration number
----@field private easing fun(x:number):number
+---@field private easing ntt.EasingFunc
 ---@field private next ntt.Tween?
 ---@field private nextVariables table?
 ---@field private parent ntt.Group
@@ -88,6 +89,7 @@ end
 ---@field private stopValue table<any,number>
 ---@field private started boolean
 ---@field private time number
+---@field private timeDuration number
 ---@field private updateCallback ntt.InternalCallbackDef[]
 ---@field private variables any[]
 local Tween = {}
@@ -101,7 +103,7 @@ local function newTween(parent, state, duration)
 	return setmetatable({
 		completeCallback = {},
 		delayTime = 0,
-		duration = duration,
+		timeDuration = duration,
 		easing = easing["quadout"],
 		next = nil,
 		nextVariables = nil,
@@ -136,6 +138,7 @@ end
 ---@param state table
 ---@param duration number
 ---@param variables table
+---@return ntt.Tween @The **new** tween object.
 ---@diagnostic disable-next-line: duplicate-set-field
 function Tween:after(state, duration, variables)
 	assert(self.parent, "this tween has been stopped")
@@ -155,7 +158,7 @@ function Tween:after(state, duration, variables)
 end
 
 ---Set the easing type which should be used by the tween.
----@param ease ntt.Easing | fun(x:number):number Easing name or function with domain of [0, 1] and codomain of [0, 1].
+---@param ease ntt.Easing | ntt.EasingFunc Easing name or function with domain of [0, 1] and codomain of [0, 1].
 function Tween:ease(ease)
 	if type(ease) == "function" then
 		self.easing = ease
@@ -227,6 +230,30 @@ function Tween:stop()
 	end
 end
 
+---Return currently elapsed time.
+---@return number
+---@diagnostic disable-next-line: duplicate-set-field
+function Tween:elapsed()
+end
+
+---Set tween elapsed time. Setting this to `Tween:duration()` will trigger complete on next update.
+---@param t number
+---@return nil
+---@diagnostic disable-next-line: duplicate-set-field
+function Tween:elapsed(t)
+	if t then
+		self.time = math.min(math.max(t, 0), self.timeDuration)
+	else
+		---@diagnostic disable-next-line: return-type-mismatch
+		return self.time
+	end
+end
+
+---Return duration of the tween.
+function Tween:duration()
+	return self.timeDuration
+end
+
 function Tween:_internalUpdate(dt)
 	if self.delayTime < 0 then
 		self.delayTime = self.delayTime + dt
@@ -244,11 +271,11 @@ function Tween:_internalUpdate(dt)
 	if self.started then
 		-- Calculate timer
 		local t = self.time + dt
-		self.time = math.min(t, self.duration)
-		local complete = self.time >= self.duration
+		self.time = math.min(t, self.timeDuration)
+		local complete = self.time >= self.timeDuration
 
 		-- Prevent divide by 0
-		local x = complete and 1 or self.easing(self.time / self.duration)
+		local x = complete and 1 or self.easing(self.time / self.timeDuration)
 
 		-- Update variables
 		for _, v in ipairs(self.variables) do
@@ -385,10 +412,23 @@ function Group:update(dt)
 end
 
 local ntt = {
-	_VERSION = "1.0.0",
+	_VERSION = "1.1.0",
 	_AUTHOR = "Miku AuahDark",
 	_LICENSE = "MIT"
 }
+
+local e = easing
+---@cast e +{linear:ntt.EasingFunc}
+---@cast e +{quadin:ntt.EasingFunc,quadout:ntt.EasingFunc,quadinout:ntt.EasingFunc}
+---@cast e +{cubicin:ntt.EasingFunc,cubicout:ntt.EasingFunc,cubicinout:ntt.EasingFunc}
+---@cast e +{quartin:ntt.EasingFunc,quartout:ntt.EasingFunc,quartinout:ntt.EasingFunc}
+---@cast e +{quadin:ntt.EasingFunc,quadout:ntt.EasingFunc,quadinout:ntt.EasingFunc}
+---@cast e +{expoin:ntt.EasingFunc,expoout:ntt.EasingFunc,expoinout:ntt.EasingFunc}
+---@cast e +{sinein:ntt.EasingFunc,sineout:ntt.EasingFunc,sineinout:ntt.EasingFunc}
+---@cast e +{circin:ntt.EasingFunc,circout:ntt.EasingFunc,circinout:ntt.EasingFunc}
+---@cast e +{backin:ntt.EasingFunc,backout:ntt.EasingFunc,backinout:ntt.EasingFunc}
+---@cast e +{elasticin:ntt.EasingFunc,elasticout:ntt.EasingFunc,elasticinout:ntt.EasingFunc}
+ntt.easing = e
 
 ---Create new tween group.
 function ntt.group()
@@ -458,6 +498,14 @@ return ntt
 
 --[[
 Changelog:
+
+v1.1.0: 2022-11-08
+> Adds support of manually manipulating tween durations with Tween:elapsed(t)
+> Adds getter of retrieving currently elapsed time with Tween:elapsed()
+> Adds getter of retrieving total duration of the tween with Tween:duration()
+
+v1.0.1: 2022-10-26
+> Expose easing function like original flux.
 
 v1.0.0: 2022-10-17
 > Initial release.
