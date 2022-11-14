@@ -28,6 +28,8 @@ local sqrt, rnd, pi = math.sqrt, math.random, math.pi
 local ffi = nil
 
 ---@class NVec
+---@field public x number
+---@field public y number
 ---@operator add(NVec): NVec
 ---@operator add(number): NVec
 ---@operator sub(NVec): NVec
@@ -50,6 +52,7 @@ if rawget(_G, "jit") and jit.status() and package.preload.ffi then
 	---@param y? number
 	---@return NVec
 	function __construct(x, y)
+		---@diagnostic disable-next-line: return-type-mismatch
 		return nvec_t(x or 0, y or 0)
 	end
 
@@ -68,6 +71,18 @@ else
 		return getmetatable(a) == nvec
 	end
 end
+
+---@param x number?
+---@param y number?
+function nvec.new(x, y)
+	return __construct(x, y)
+end
+
+function nvec.isvector(object)
+	return isVector(object)
+end
+nvec.is = nvec.isvector
+nvec.zero = nvec.new(0, 0)
 
 ---@param angle number
 ---@param radius number
@@ -290,10 +305,6 @@ function nvec:angleTo(other)
 	return atan2(self.y, self.x)
 end
 
-
----@type fun(x?: number, y?: number): NVec
-nvec.new = __construct
-nvec.is = isVector
 nvec.__index = nvec
 
 if nvec_t then
