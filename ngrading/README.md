@@ -20,7 +20,7 @@ Two variants of LUT table can be used:
 Functions
 -----
 
-#### `ColorGrading ngrading.load(string|ImageData image, number pixelsPerCell)`
+#### `ColorGrading ngrading.load(string|Texture|ImageData image, number pixelsPerCell)`
 
 Create new `ColorGrading` object from specified RGB lookup-table.
 
@@ -30,7 +30,7 @@ Parameters:
 
 * `pixelsPerCell` - Width of single cell in pixels.
 
-#### `string ngrading.getShader()`
+#### `string ColorGrading:getShader()`
 
 Get the internal shader string used for the color grading effect. The shader string contains this function
 
