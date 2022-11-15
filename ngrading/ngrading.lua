@@ -1,6 +1,6 @@
 -- NPad's Color Grading Library
 --[[---------------------------------------------------------------------------
--- Copyright (c) 2020 Miku AuahDark
+-- Copyright (c) 2022 Miku AuahDark
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,8 @@
 local love = require("love")
 assert(love._version >= "11.0", "ngrading require LOVE 11.0 or later")
 
-local ngradingShader = {}
-ngradingShader.old = [[
+local ngradingShader = {
+old = [[
 extern Image lut;
 extern number cellPixels;
 extern vec2 cellDimensions;
@@ -55,9 +55,8 @@ vec4 ngrading(Image tex, vec2 tc)
 {
 	return ngrading(Texel(tex, tc));
 }
-]]
-
-ngradingShader.volume = [[
+]],
+volume = [[
 extern VolumeImage lut;
 
 vec4 ngrading(vec4 texCol)
@@ -70,6 +69,7 @@ vec4 ngrading(Image tex, vec2 tc)
 	return ngrading(Texel(tex, tc));
 }
 ]]
+}
 
 local defaultShaderEffect = [[
 vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc)
@@ -78,97 +78,206 @@ vec4 effect(vec4 color, Image tex, vec2 tc, vec2 sc)
 }
 ]]
 
-local defaultShader
-local defaultShaderObject
-local usedShader
+local supportVolumeTextureChecked = nil
+local loadedShader = {}
 
 local defaultLUTLoadSetting = {linear = true, dpiscale = 1}
 
-local ngrading = {_VERSION = "1.0.1",}
+---@alias ngrading.Mode
+---Tiled 2D texture.
+---| "old"
+---Volume texture.
+---| "volume"
+
+---@class ngrading
+---@field private image love.Texture?
+---@field private volumeImage love.Texture?
+---@field private mode ngrading.Mode
+---@field private pixelsPerCell integer?
+---@field private tileDimensions {[1]:integer,[2]:integer}?
+---@field private shader love.Shader
+local ngrading = {
+	_VERSION = "2.0.0",
+	_AUTHOR = "MikuAuahDark",
+	_LICENSE = "MIT"
+}
 ngrading.__index = ngrading
 
-local function getUsedShader()
-	if usedShader == nil then
-		usedShader = love.graphics.getTextureTypes().volume
-		-- LOVE before 11.3 returns number instead!
-		if usedShader == 0 then usedShader = false end
-		usedShader = usedShader and "volume" or "old"
+---@param type string
+---@return love.Shader
+local function getDefaultShaderByType(type)
+	if not loadedShader[type] then
+		local shader = (assert(ngradingShader[type])).."\n\n"..defaultShaderEffect
+		loadedShader[type] = love.graphics.newShader(shader)
 	end
 
-	if defaultShader == nil then
-		assert(usedShader)
-		defaultShader = string.format("%s\n\n%s", ngradingShader[usedShader], defaultShaderEffect)
-	end
-
-	return usedShader, defaultShader
+	return loadedShader[type]
 end
 
-function ngrading.load(img, pixelsPerCell)
-	local imageData
-	if type(img) == "userdata" and img.typeOf and img:typeOf("ImageData") then
-		imageData = img
-	else
-		imageData = love.image.newImageData(img)
+---@return boolean
+local function isVolumeTextureSupported()
+	if supportVolumeTextureChecked == nil then
+		local supportVolume = love.graphics.getTextureTypes().volume
+		-- LOVE before 11.3 returns number instead!
+		if supportVolume == 0 then supportVolume = false end
+		supportVolumeTextureChecked = supportVolume
 	end
 
-	local tw = math.floor(imageData:getWidth() / pixelsPerCell)
-	local th = math.floor(imageData:getHeight() / pixelsPerCell)
+	return supportVolumeTextureChecked
+end
+
+---Create new `ngrading` object from specified RGB lookup-table.
+---
+---If `img` is `Texture`, the filter and wrap mode is **not** set. Setting the filter mode to `"linear"` and wrap mode
+---to `"clamp"` is recommended for best results, but user must do this themselves!
+---@param img string|love.ImageData|love.Texture RGB lookup-table image path or existing `ImageData` or existing `Texture`.
+---@param pixelsPerCell integer? Width and height of single cell in pixels. Ignored for volume textures, required for `string` or `ImageData` or 2D textures.
+---@nodiscard
+function ngrading.load(img, pixelsPerCell)
+	---@type love.ImageData|love.Texture
+	local destination
+	local isImageData
+
+	if type(img) == "userdata" and img.typeOf then
+		if img:typeOf("ImageData") then
+			---@cast img love.ImageData
+			destination = img
+			isImageData = true
+		elseif img:typeOf("Texture") then
+			---@cast img love.Texture
+			destination = img
+			isImageData = false
+		end
+	else
+		---@cast img string
+		destination = love.image.newImageData(img)
+		isImageData = true
+	end
 
 	local self = setmetatable({}, ngrading)
-	self.tileDimensions = {tw, th}
-	self.pixelsPerCell = pixelsPerCell
 
-	if getUsedShader() == "volume" then
-		-- slice images
-		local imgs = {}
-		local fmt = imageData:getFormat()
+	-- If img is ImageData (or string): Check if VolumeTexture is supported
+	-- If img is Texture: Depends on the image type
+	if isImageData then
+		---@cast destination love.ImageData
+		if isVolumeTextureSupported() then
+			-- Slice images
+			assert(pixelsPerCell, "need pixels per cell")
+			local tw = math.floor(destination:getWidth() / pixelsPerCell)
+			local th = math.floor(destination:getHeight() / pixelsPerCell)
+			local imgs = {}
+			local fmt = destination:getFormat()
 
-		for j = 0, th - 1 do
-			for i = 0, tw - 1 do
-				local nimg = love.image.newImageData(pixelsPerCell, pixelsPerCell, fmt)
-				nimg:paste(imageData, 0, 0, i * pixelsPerCell, j * pixelsPerCell, pixelsPerCell, pixelsPerCell)
-				imgs[#imgs + 1] = nimg
+			for j = 0, th - 1 do
+				for i = 0, tw - 1 do
+					local nimg = love.image.newImageData(pixelsPerCell, pixelsPerCell, fmt)
+					nimg:paste(destination, 0, 0, i * pixelsPerCell, j * pixelsPerCell, pixelsPerCell, pixelsPerCell)
+					imgs[#imgs + 1] = nimg
+				end
 			end
+
+			self.mode = "volume"
+			self.volumeImage = love.graphics.newVolumeImage(imgs, defaultLUTLoadSetting)
+			self.volumeImage:setFilter("linear", "linear")
+			self.volumeImage:setWrap("clamp", "clamp", "clamp")
+		else
+			-- Just create image
+			assert(pixelsPerCell, "need pixels per cell")
+			self.mode = "old"
+			self.tileDimensions = {
+				math.floor(destination:getWidth() / pixelsPerCell),
+				math.floor(destination:getHeight() / pixelsPerCell)
+			}
+			self.pixelsPerCell = pixelsPerCell
+			self.image = love.graphics.newImage(destination, defaultLUTLoadSetting)
+			self.image:setFilter("linear", "linear")
+			self.image:setWrap("clamp", "clamp")
 		end
-
-		self.volumeImage = love.graphics.newVolumeImage(imgs, defaultLUTLoadSetting)
-		self.volumeImage:setFilter("linear", "linear")
-		self.volumeImage:setWrap("clamp", "clamp", "clamp")
 	else
-		-- Just create image
-		self.image = love.graphics.newImage(imageData, defaultLUTLoadSetting)
-		self.image:setFilter("linear", "linear")
-		self.image:setWrap("clamp", "clamp")
+		---@cast destination love.Texture
+		assert(destination:isReadable(), "texture is not readable")
+		local type = destination:getTextureType()
+
+		if type == "volume" then
+			self.mode = "volume"
+			self.volumeImage = destination
+		elseif type == "2d" then
+			assert(pixelsPerCell, "need pixels per cell")
+			self.mode = "old"
+			self.tileDimensions = {
+				math.floor(destination:getWidth() / pixelsPerCell),
+				math.floor(destination:getHeight() / pixelsPerCell)
+			}
+			self.pixelsPerCell = pixelsPerCell
+			self.image = destination
+		else
+			error("invalid texture type '"..type.."'")
+		end
 	end
 
-	if defaultShaderObject == nil then
-		defaultShaderObject = love.graphics.newShader(select(2, getUsedShader()))
-	end
+	self.shader = getDefaultShaderByType(self.mode)
 
 	return self
 end
 
--- low-level function
-function ngrading.getShader()
-	return ngradingShader[getUsedShader()]
-end
-
+---Prepares the shader to apply color LUT data.
+---
+---**This is a low-level function. Only use this if you plan on using custom shaders but with color grading!**
+---@param shader love.Shader Shader to prepare the color grading data. Defaults to `love.graphics.getShader()` and error if there are no active shader.
 function ngrading:setupShaderData(shader)
 	shader = shader or assert(love.graphics.getShader(), "no shader set")
 
-	if self.image then
+	if self.mode == "old" then
 		shader:send("lut", self.image)
 		shader:send("cellPixels", self.pixelsPerCell)
 		shader:send("cellDimensions", self.tileDimensions)
-	else
+	elseif self.mode == "volume" then
 		shader:send("lut", self.volumeImage)
 	end
 end
 
--- this overwrite current shader, high-level function
+---Set the shader to color grading shader. Any subsequent drawing will use the color grading shader. To disable it,
+---call `love.graphics.setShader(othershader)` or `love.graphics.setShader()`.
+---
+---**This function replaces the current active shader to color grading shader!**
 function ngrading:apply()
-	love.graphics.setShader(defaultShaderObject)
-	self:setupShaderData(defaultShaderObject)
+	love.graphics.setShader(self.shader)
+	self:setupShaderData(self.shader)
+end
+
+---Get the internal shader string used for the color grading effect. The shader string contains this function
+---```glsl
+---vec4 ngrading(Image tex, vec2 textureCoords); // if you have Image texture
+---vec4 ngrading(vec4 color); // if you have existing color values
+---```
+---Which can be concatenated with a custom shader.
+---
+---**This is a low-level function. Only use this if you plan on using custom shaders but with color grading!**
+---@see ngrading.setupShaderData
+function ngrading:getShader()
+	assert(self, "ngrading.getShader is now a method function")
+	return ngradingShader[self.mode]
+end
+
+function ngrading:getMode()
+	return self.mode
 end
 
 return ngrading
+
+--[[
+Changelog:
+
+v2.0.0: 2022-11-15
+> Added support for generic Texture types as LUT tables.
+> Changed ngading.getShader from static method to class method.
+
+v1.0.2: 2021-01-03
+> Add vec4 ngrading(vec4 color) variant to low-level shader code.
+
+v1.0.1: 2020-05-15
+> Always load LUT image with dpiscale = 1 and linear = true
+
+v1.0.0: 2019-08-03
+> Initial release.
+]]
