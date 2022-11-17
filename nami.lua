@@ -361,7 +361,7 @@ local namiLuaIo = {
 	---If it's asking the current position, `whence` is `"cur"` and `offset` is `0`.
 	---@param opaque any User data returned from probe function.
 	---@param whence seekwhence
-	---@param offset integer
+	---@param offset integer?
 	---@return integer @New stream position or nil on failure.
 	seek = function(opaque, whence, offset)
 		return opaque:seek(whence, offset)
@@ -401,7 +401,7 @@ local namiStringIO = {
 			base = #opaque[1]
 		end
 
-		local pos = math.min(math.max(base + offset, 0), #opaque[1])
+		local pos = math.min(math.max(base + (offset or 0), 0), #opaque[1])
 		opaque[2] = pos
 		return pos
 	end,
@@ -490,7 +490,7 @@ if rawget(_G, "love") then
 				base = opaque:getSize()
 			end
 
-			local result = opaque:seek(base + offset)
+			local result = opaque:seek(base + (offset or 0))
 			if result then
 				return opaque:tell()
 			end
