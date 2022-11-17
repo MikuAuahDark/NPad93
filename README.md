@@ -187,3 +187,11 @@ flux-compatible tween implementation with additional enhancements and restrictio
 For documentation and usage, please see flux repository: https://github.com/rxi/flux
 
 If you want to replace existing flux library, either rename `ntt.lua` to `flux.lua` or replace all `require`s from `flux` to `ntt`.
+
+shlex
+-----
+Simple lexical analysis, translated directly from Python's shlex.
+
+From Python documentation: The shlex class makes it easy to write lexical analyzers for simple syntaxes resembling that of the Unix shell. This will often be useful for writing minilanguages, (for example, in run control files for Python applications) or for parsing quoted strings.
+
+Note: This library is untested with Python's test vectors. Use at your own discretion.
