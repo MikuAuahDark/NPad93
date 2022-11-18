@@ -188,6 +188,12 @@ For documentation and usage, please see flux repository: https://github.com/rxi/
 
 If you want to replace existing flux library, either rename `ntt.lua` to `flux.lua` or replace all `require`s from `flux` to `ntt`.
 
+NAniTe
+-----
+**N**Pad **Ani**mation **T**imelin**e**
+
+Timeline-based animation system with support of forward and backward update.
+
 shlex
 -----
 Simple lexical analysis, translated directly from Python's shlex.
