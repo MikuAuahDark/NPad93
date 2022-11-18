@@ -194,6 +194,15 @@ NAniTe
 
 Timeline-based animation system with support of forward and backward update.
 
+[Demo LOVE Project v1.0.0](https://cdn.discordapp.com/attachments/474705430434807819/1043092280887750716/nanite-demo.love).
+Control are as follows:
+* `space` - Pause/resume the animation
+* `enter` - Toggle between forward or backward update
+* `left` and `right` arrow button - Move the animation backward and forward 5ms (/tick with key repeat).
+* `shift` - Increase the behavior above 3x faster (so 15ms)
+
+Documentation can be found at https://github.com/MikuAuahDark/NPad93/blob/master/doc/NAniTe.md
+
 shlex
 -----
 Simple lexical analysis, translated directly from Python's shlex.
