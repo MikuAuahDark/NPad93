@@ -469,8 +469,8 @@ end
 local MaxConstraint = {}
 MaxConstraint.__index = MaxConstraint
 
----@param offx number X offset (default to 0)
----@param offy number Y offset (default to 0)
+---@param offx? number X offset (default to 0)
+---@param offy? number Y offset (default to 0)
 ---@return number,number,number,number
 function MaxConstraint:get(offx, offy, _cacheCounter)
 	local minx, miny, maxx, maxy = self.list[1]:get(nil, nil, _cacheCounter)
@@ -497,6 +497,9 @@ end
 local LineConstraint = {}
 LineConstraint.__index = LineConstraint
 
+---@param offx? number
+---@param offy? number
+---@return number,number,number,number
 function LineConstraint:get(offx, offy, _cacheCounter)
 	offx, offy = offx or 0, offy or 0
 	local x, y, w, h
@@ -543,8 +546,8 @@ end
 local GridCellConstraint = {}
 GridCellConstraint.__index = GridCellConstraint
 
----@param offx number
----@param offy number
+---@param offx? number
+---@param offy? number
 ---@return number,number,number,number
 function GridCellConstraint:get(offx, offy, _cacheCounter)
 	local x, y, w, h = self.context:_resolveCell(self.x0, self.y0, _cacheCounter)
@@ -731,8 +734,8 @@ RootConstraint._VERSION = "1.3.0"
 RootConstraint._AUTHOR = "MikuAuahDark"
 RootConstraint._LICENSE = "MIT"
 
----@param offx number X offset (default to 0)
----@param offy number Y offset (default to 0)
+---@param offx? number X offset (default to 0)
+---@param offy? number Y offset (default to 0)
 ---@return number,number,number,number
 function RootConstraint:get(offx, offy)
 	return RootConstraint.x + (offx or 0), RootConstraint.y + (offy or 0), RootConstraint.width, RootConstraint.height
@@ -857,7 +860,7 @@ end
 ---@param constraint NLay.Constraint
 ---@param nrows integer
 ---@param ncols integer
----@param settings NLay.GridSetting
+---@param settings? NLay.GridSetting
 function RootConstraint.grid(constraint, nrows, ncols, settings)
 	settings = settings or {}
 	local vspace = math.max(selectDefault(settings.vspacing, settings.spacing, 0), 0)
