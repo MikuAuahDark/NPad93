@@ -225,6 +225,9 @@ identical attached constraints.
 
 Returns: table of numbers in form of `{x1, y1, w1, h1, x2, y2, w2, h2, ..., xn, yn, wn, hn}`
 
+> **Deprecated**: With v1.4.0 new caching mechanism, individually retrieving values with `BaseConstraint:get()` is as
+fast as `NLay.batchGet`.
+
 ************************************************
 
 ### `Grid NLay.grid(Constraint constraint, integer nrows, integer ncols, table settings)`
