@@ -843,7 +843,7 @@ NLay.x = 0
 NLay.y = 0
 NLay.width = 800
 NLay.height = 600
-NLay._VERSION = "1.3.0"
+NLay._VERSION = "1.4.0"
 NLay._AUTHOR = "MikuAuahDark"
 NLay._LICENSE = "MIT"
 
@@ -1038,6 +1038,12 @@ return NLay
 
 --[[
 Changelog:
+
+v1.4.0: 2022-12-16
+> Implemented a new caching mechanism. This should gives significant boost of
+performance with complex constraints.
+> Deprecated NLay.batchGet. Retrieving individual constraint is as fast as this
+function.
 
 v1.3.0: 2022-06-04
 > Added modeW and modeH parameter to Constraint:size to calculate the size
