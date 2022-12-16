@@ -41,6 +41,7 @@ local BaseConstraint = {
 ---@param offy? number
 ---@return number,number,number,number
 function BaseConstraint:get(offx, offy)
+---@diagnostic disable-next-line: missing-return
 end
 
 ---@class NLay.Constraint: NLay.BaseConstraint
@@ -62,10 +63,6 @@ end
 ---@field private biasVert number
 ---@field package inside NLay.Inside
 ---@field private forceIntoFlags boolean
----@field private cacheX number
----@field private cacheY number
----@field private cacheW number
----@field private cacheH number
 ---@field private userTag any
 ---@field private aspectRatio number
 local Constraint = {}
@@ -739,7 +736,8 @@ end
 ---NOTE: On dynamic mode, this function resolve the whole constraint so use with care!
 ---@return number,number
 function Grid:getCellDimensions()
-	local w, h = select(3,self:_resolveCell(0, 0))
+	local w, h = select(3, self:_resolveCell(0, 0))
+	---@diagnostic disable-next-line: return-type-mismatch
 	return w, h
 end
 
@@ -806,10 +804,6 @@ function Inside:constraint(top, left, bottom, right)
 		biasVert = 0.5,
 		inside = self,
 		forceIntoFlags = false,
-		cacheX = 0,
-		cacheY = 0,
-		cacheW = 0,
-		cacheH = 0,
 		aspectRatio = 0,
 	}, Constraint)
 
@@ -876,6 +870,7 @@ function NLay.update(x, y, w, h)
 
 		-- Invalidate all caches
 		if hasTableClear then
+			---@diagnostic disable-next-line: undefined-field
 			table.clear(BaseConstraint.cache)
 		else
 			for k in pairs(BaseConstraint.cache) do
