@@ -20,8 +20,21 @@
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 -- DEALINGS IN THE SOFTWARE.
 
+local hasTableClear = pcall(require, "table.clear")
+
+---@class NLay.Cache
+---@field package x number?
+---@field package y number?
+---@field package w number?
+---@field package h number?
+---@field package referenced (NLay.BaseConstraint?)[]
+---@field package refLength integer
+
 ---@class NLay.BaseConstraint
-local BaseConstraint = {}
+---@field package cache table<NLay.BaseConstraint, NLay.Cache?>
+local BaseConstraint = {
+	cache = setmetatable({}, {__mode = "k"})
+}
 
 ---Compute and retrieve the top-left and the dimensions of layout.
 ---@param offx? number
@@ -31,25 +44,24 @@ function BaseConstraint:get(offx, offy)
 end
 
 ---@class NLay.Constraint: NLay.BaseConstraint
----@field private top NLay.BaseConstraint
----@field private left NLay.BaseConstraint
----@field private bottom NLay.BaseConstraint
----@field private right NLay.BaseConstraint
----@field private inTop boolean
----@field private inLeft boolean
----@field private inBottom boolean
----@field private inRight boolean
----@field private marginX number
----@field private marginY number
----@field private marginW number
----@field private marginH number
+---@field package top NLay.BaseConstraint
+---@field package left NLay.BaseConstraint
+---@field package bottom NLay.BaseConstraint
+---@field package right NLay.BaseConstraint
+---@field package inTop boolean
+---@field package inLeft boolean
+---@field package inBottom boolean
+---@field package inRight boolean
+---@field package marginX number
+---@field package marginY number
+---@field package marginW number
+---@field package marginH number
 ---@field private w number
 ---@field private h number
 ---@field private biasHorz number
 ---@field private biasVert number
----@field private inside NLay.Inside
+---@field package inside NLay.Inside
 ---@field private forceIntoFlags boolean
----@field private cacheCounter number
 ---@field private cacheX number
 ---@field private cacheY number
 ---@field private cacheW number
@@ -62,11 +74,11 @@ Constraint.__index = Constraint
 ---@param constraint NLay.Constraint
 ---@param target NLay.BaseConstraint
 ---@return number,number,number,number
-local function resolveConstraintSize(constraint, target, _cacheCounter)
+local function resolveConstraintSize(constraint, target)
 	if target == constraint.inside.obj then
-		return constraint.inside:_get(_cacheCounter)
+		return constraint.inside:_get()
 	else
-		return target:get(nil, nil, _cacheCounter)
+		return target:get()
 	end
 end
 
@@ -74,7 +86,8 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
-local function resolveWidthSize0(self, _cacheCounter)
+---@param self NLay.Constraint
+local function resolveWidthSize0(self)
 	local x, width
 
 	if self.left == nil or self.right == nil then
@@ -82,7 +95,7 @@ local function resolveWidthSize0(self, _cacheCounter)
 	end
 
 	-- Left
-	local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
+	local e1x, _, e1w = resolveConstraintSize(self, self.left)
 	if self.inLeft then
 		x = e1x + self.marginX
 	else
@@ -90,7 +103,7 @@ local function resolveWidthSize0(self, _cacheCounter)
 	end
 
 	-- Right
-	local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
+	local e2x, _, e2w = resolveConstraintSize(self, self.right)
 	if self.inRight then
 		width = e2x + e2w - x - self.marginW
 	else
@@ -100,14 +113,15 @@ local function resolveWidthSize0(self, _cacheCounter)
 	return x, width
 end
 
-local function resolveHeightSize0(self, _cacheCounter)
+---@param self NLay.Constraint
+local function resolveHeightSize0(self)
 	local y, height
 
 	if self.bottom == nil or self.top == nil then
 		error("insufficient constraint for height 0")
 	end
 
-	local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
+	local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
 
 	if self.inTop then
 		y = e1y + self.marginY
@@ -115,7 +129,7 @@ local function resolveHeightSize0(self, _cacheCounter)
 		y = e1y + e1h + self.marginY
 	end
 
-	local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
+	local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
 
 	if self.inBottom then
 		height = e2y + e2h - y - self.marginH
@@ -136,15 +150,86 @@ local function isPercentMode(str, name)
 	end
 end
 
-local nextCacheCounter = 0
-
-local function incrementCacheCounter(cc)
-	if cc == nil then
-		cc = nextCacheCounter
-		nextCacheCounter = (nextCacheCounter + 1) % 1e15
+---@param constraint NLay.BaseConstraint
+local function getCachedData(constraint)
+	local c = BaseConstraint.cache[constraint]
+	if not c then
+		return nil, nil, nil, nil
 	end
 
-	return cc
+	return c.x, c.y, c.w, c.h
+end
+
+---@param constraint NLay.BaseConstraint
+local function getCacheEntry(constraint)
+	local c = BaseConstraint.cache[constraint]
+	if not c then
+		c = {
+			referenced = setmetatable({}, {__mode = "v"}),
+			refLength = 0
+		}
+		BaseConstraint.cache[constraint] = c
+	end
+
+	return c
+end
+
+---@param constraint NLay.BaseConstraint
+---@param x number
+---@param y number
+---@param w number
+---@param h number
+local function insertCached(constraint, x, y, w, h)
+	local c = getCacheEntry(constraint)
+	c.x, c.y, c.w, c.h = x, y, w, h
+end
+
+---@param constraint NLay.BaseConstraint
+local function invalidateCache(constraint)
+	local c = getCacheEntry(constraint)
+
+	-- Constraint that reference `constraint` must be invalidated too.
+	if c.x and c.y and c.w and c.h then
+		local newRefLen = 0
+
+		for i = 1, c.refLength do
+			local other = c.referenced[i]
+
+			if other then
+				newRefLen = i
+				invalidateCache(other)
+			end
+		end
+
+		c.refLength = newRefLen
+		c.x, c.y, c.w, c.h = nil, nil, nil, nil
+	end
+end
+
+---Constraint `constraint` reference `other` constraint.
+---@param constraint NLay.BaseConstraint
+---@param other NLay.BaseConstraint
+local function addRefCache(constraint, other)
+	local c = getCacheEntry(other)
+	local targetIndex = 0
+
+	for i = 1, c.refLength do
+		local r = c.referenced[i]
+
+		-- No duplicates
+		if r == constraint then
+			return
+		elseif not r then
+			targetIndex = i
+		end
+	end
+
+	if targetIndex == 0 then
+		c.refLength = c.refLength + 1
+		targetIndex = c.refLength
+	end
+
+	c.referenced[targetIndex] = constraint
 end
 
 ---@generic T
@@ -167,13 +252,10 @@ end
 
 ---@param offx? number X offset (default to 0)
 ---@param offy? number Y offset (default to 0)
----@param _cacheCounter? any Internal use only.
-function Constraint:get(offx, offy, _cacheCounter)
-	_cacheCounter = incrementCacheCounter(_cacheCounter)
+function Constraint:get(offx, offy)
+	local finalX, finalY, finalW, finalH = getCachedData(self)
 
-	if self.cacheCounter ~= _cacheCounter then
-		self.cacheCounter = _cacheCounter
-
+	if not (finalX and finalY and finalW and finalH) then
 		if (self.left ~= nil or self.right ~= nil) and (self.top ~= nil or self.bottom ~= nil) then
 			local x, y, w, h
 			local width, height = self.w, self.h
@@ -181,11 +263,11 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 			-- Convert percent values to pixel values
 			if self.relW then
-				width = select(2, resolveWidthSize0(self, _cacheCounter)) * self.w
+				width = select(2, resolveWidthSize0(self)) * self.w
 			end
 
 			if self.relH then
-				height = select(2, resolveHeightSize0(self, _cacheCounter)) * self.h
+				height = select(2, resolveHeightSize0(self)) * self.h
 			end
 
 			-- Resolve aspect ratio part 1
@@ -203,11 +285,11 @@ function Constraint:get(offx, offy, _cacheCounter)
 				local resolvedWidth, resolvedHeight
 
 				if self.left and self.right then
-					resolvedWidth = select(2, resolveWidthSize0(self, _cacheCounter))
+					resolvedWidth = select(2, resolveWidthSize0(self))
 				end
 
 				if self.top and self.bottom then
-					resolvedHeight = select(2, resolveHeightSize0(self, _cacheCounter))
+					resolvedHeight = select(2, resolveHeightSize0(self))
 				end
 
 				if resolvedWidth or resolvedHeight then
@@ -228,20 +310,20 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 			if width == -1 then
 				-- Match parent
-				local px, _, pw, _ = self.inside:_get(_cacheCounter)
+				local px, _, pw, _ = self.inside:_get()
 				x, width = px, pw
 			elseif width == 0 then
 				-- Match constraint
-				x, width = resolveWidthSize0(self, _cacheCounter)
+				x, width = resolveWidthSize0(self)
 			end
 
 			if height == -1 then
 				-- Match parent
-				local _, py, _, ph = self.inside:_get(_cacheCounter)
+				local _, py, _, ph = self.inside:_get()
 				y, h = py, ph
 			elseif height == 0 then
 				-- Match constraint
-				y, height = resolveHeightSize0(self, _cacheCounter)
+				y, height = resolveHeightSize0(self)
 			end
 
 			if self.aspectRatio ~= 0 and zerodim then
@@ -260,7 +342,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 				if self.left then
 					-- Left orientation
-					local e1x, _, e1w = resolveConstraintSize(self, self.left, _cacheCounter)
+					local e1x, _, e1w = resolveConstraintSize(self, self.left)
 
 					if self.inLeft then
 						l = e1x + self.marginX
@@ -271,7 +353,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 				if self.right then
 					-- Right orientation
-					local e2x, _, e2w = resolveConstraintSize(self, self.right, _cacheCounter)
+					local e2x, _, e2w = resolveConstraintSize(self, self.right)
 
 					if self.inRight then
 						r = e2x + e2w - self.marginW - w
@@ -294,7 +376,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 				if self.top then
 					-- Top orientation
-					local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top, _cacheCounter))
+					local e1y, _, e1h = select(2, resolveConstraintSize(self, self.top))
 
 					if self.inTop then
 						t = e1y + self.marginY
@@ -305,7 +387,7 @@ function Constraint:get(offx, offy, _cacheCounter)
 
 				if self.bottom then
 					-- Bottom orientation
-					local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom, _cacheCounter))
+					local e2y, _, e2h = select(2, resolveConstraintSize(self, self.bottom))
 
 					if self.inBottom then
 						b = e2y + e2h - self.marginH - h
@@ -323,15 +405,17 @@ function Constraint:get(offx, offy, _cacheCounter)
 			end
 
 			assert(x and y and w and h, "fatal error please report!")
-			self.cacheX, self.cacheY, self.cacheW, self.cacheH = x, y, math.max(w, 0), math.max(h, 0)
+			finalX, finalY, finalW, finalH = x, y, math.max(w, 0), math.max(h, 0)
+			insertCached(self, finalX, finalY, finalW, finalH)
 		else
 			error("insufficient constraint")
 		end
 	end
 
-	return self.cacheX + (offx or 0), self.cacheY + (offy or 0), self.cacheW, self.cacheH
+	return finalX + (offx or 0), finalY + (offy or 0), finalW, finalH
 end
 
+---@package
 function Constraint:_overrideIntoFlags()
 	self.inTop = self.inTop or self.inside.obj == self.top
 	self.inLeft = self.inLeft or self.inside.obj == self.left
@@ -366,6 +450,7 @@ function Constraint:into(top, left, bottom, right)
 		self:_overrideIntoFlags()
 	end
 
+	invalidateCache(self)
 	return self
 end
 
@@ -385,6 +470,7 @@ function Constraint:margin(margin)
 		self.marginH = margin[3] or 0
 	end
 
+	invalidateCache(self)
 	return self
 end
 
@@ -405,6 +491,7 @@ function Constraint:size(width, height, modeW, modeH)
 	self.relW = isPercentMode(modeW or "pixel", "width")
 	self.relH = isPercentMode(modeH or "pixel", "height")
 
+	invalidateCache(self)
 	return self
 end
 
@@ -430,6 +517,7 @@ function Constraint:bias(horz, vert, unclamped)
 		end
 	end
 
+	invalidateCache(self)
 	return self
 end
 
@@ -439,6 +527,7 @@ end
 ---@return NLay.Constraint
 function Constraint:forceIn(force)
 	self.forceIntoFlags = not not force
+	invalidateCache(self)
 	return self
 end
 
@@ -461,6 +550,7 @@ end
 function Constraint:ratio(ratio)
 	if ratio ~= ratio or math.abs(ratio) == math.huge then ratio = 0 end
 	self.aspectRatio = ratio or 0
+	invalidateCache(self)
 	return self
 end
 
@@ -472,13 +562,13 @@ MaxConstraint.__index = MaxConstraint
 ---@param offx? number X offset (default to 0)
 ---@param offy? number Y offset (default to 0)
 ---@return number,number,number,number
-function MaxConstraint:get(offx, offy, _cacheCounter)
-	local minx, miny, maxx, maxy = self.list[1]:get(nil, nil, _cacheCounter)
+function MaxConstraint:get(offx, offy)
+	local minx, miny, maxx, maxy = self.list[1]:get()
 	maxx = maxx + minx
 	maxy = maxy + miny
 
 	for i = 2, #self.list do
-		local x, y, w, h = self.list[i]:get(nil, nil, _cacheCounter)
+		local x, y, w, h = self.list[i]:get()
 		minx = math.min(minx, x)
 		miny = math.min(miny, y)
 		maxx = math.max(maxx, x + w)
@@ -500,42 +590,52 @@ LineConstraint.__index = LineConstraint
 ---@param offx? number
 ---@param offy? number
 ---@return number,number,number,number
-function LineConstraint:get(offx, offy, _cacheCounter)
-	offx, offy = offx or 0, offy or 0
+function LineConstraint:get(offx, offy)
 	local x, y, w, h
 
 	if self.constraint.obj then
-		x, y, w, h = self.constraint:_get(_cacheCounter)
+		x, y, w, h = self.constraint:_get()
 	else
-		x, y, w, h = self.constraint:get(nil, nil, _cacheCounter)
+		x, y, w, h = self.constraint:get()
 	end
 
-	if self.direction == "horizontal" then
-		-- Vertical line for horizontal constraint
-		if self.mode == "percent" then
-			-- Interpolate
-			return mix(x, x + w, (self.flip and 1 or 0) + self.lineOffset) + offx, y + offy, 0, h
+	local fx, fy, fw, fh = getCachedData(self)
+
+	if not (fx and fy and fw and fh) then
+		if self.direction == "horizontal" then
+			-- Vertical line for horizontal constraint
+			if self.mode == "percent" then
+				-- Interpolate
+				--return mix(x, x + w, (self.flip and 1 or 0) + self.lineOffset) + offx, y + offy, 0, h
+				fx, fy, fw, fh = mix(x, x + w, (self.flip and 1 or 0) + self.lineOffset), y, 0, h
+			else
+				-- Offset
+				-- x + (self.flip and w or 0) + self.lineOffset + offx, y + offy, 0, h
+				fx, fy, fw, fh = x + (self.flip and w or 0) + self.lineOffset, y, 0, h
+			end
 		else
-			-- Offset
-			return x + (self.flip and w or 0) + self.lineOffset + offx, y + offy, 0, h
+			-- Horizontal line for vertical constraint
+			if self.mode == "percent" then
+				-- Interpolate
+				-- x + offx, mix(y, y + h, (self.flip and 1 or 0) + self.lineOffset) + offy, w, 0
+				fx, fy, fw, fh = x, mix(y, y + h, (self.flip and 1 or 0) + self.lineOffset), w, 0
+			else
+				-- Offset
+				--return x + offx, y + (self.flip and h or 0) + self.lineOffset + offy, w, 0
+				fx, fy, fw, fh = x, y + (self.flip and h or 0) + self.lineOffset, w, 0
+			end
 		end
-	else
-		-- Horizontal line for vertical constraint
-		if self.mode == "percent" then
-			-- Interpolate
-			return x + offx, mix(y, y + h, (self.flip and 1 or 0) + self.lineOffset) + offy, w, 0
-		else
-			-- Offset
-			return x + offx, y + (self.flip and h or 0) + self.lineOffset + offy, w, 0
-		end
+
+		insertCached(self, fx, fy, fw, fh)
 	end
 
-	error("fatal error unreachable code")
+	return fx + (offx or 0), fy + (offy or 0), fw, fh
 end
 
 -- (Re)-set the line offset.
 function LineConstraint:offset(off)
 	self.lineOffset = off + 0
+	invalidateCache(self)
 	return self
 end
 
@@ -549,8 +649,8 @@ GridCellConstraint.__index = GridCellConstraint
 ---@param offx? number
 ---@param offy? number
 ---@return number,number,number,number
-function GridCellConstraint:get(offx, offy, _cacheCounter)
-	local x, y, w, h = self.context:_resolveCell(self.x0, self.y0, _cacheCounter)
+function GridCellConstraint:get(offx, offy)
+	local x, y, w, h = self.context:_resolveCell(self.x0, self.y0)
 	return x + (offx or 0), y + (offy or 0), w, h
 end
 
@@ -565,7 +665,6 @@ end
 ---@field private vfl boolean
 ---@field private cellW number
 ---@field private cellH number
----@field private cacheCounter integer
 local Grid = {}
 Grid.__index = Grid
 
@@ -605,7 +704,7 @@ end
 ---Calls a function for each grid cell constraint.
 ---
 ---NOTE: This initializes all the grid cell constraint in the list, which may slow.
----@param func fun(constraint:NLay.GridCellConstraint,row:integer,col: integer,...)
+---@param func fun(constraint:NLay.GridCellConstraint,row:integer,col:integer,...)
 function Grid:foreach(func, ...)
 	for y = 1, self.rows do
 		for x = 1, self.cols do
@@ -639,20 +738,24 @@ end
 ---
 ---NOTE: On dynamic mode, this function resolve the whole constraint so use with care!
 ---@return number,number
-function Grid:getCellDimensions(_cacheCounter)
-	local w, h = select(3,self:_resolveCell(0, 0, _cacheCounter))
+function Grid:getCellDimensions()
+	local w, h = select(3,self:_resolveCell(0, 0))
 	return w, h
 end
 
+---@package
 function Grid:_updateSize()
 	local width = self.hspacing * (self.cols + (self.hfl and 1 or -1)) + self.cellW * self.cols
 	local height = self.vspacing * (self.rows + (self.vfl and 1 or -1)) + self.cellH * self.rows
 	self.constraint:size(width, height)
 end
 
-function Grid:_resolveCell(x, y, cc)
+---@package
+---@param x number
+---@param y number
+function Grid:_resolveCell(x, y)
 	-- x and y must be 0-based
-	local xc, yc, w, h = self.constraint:get(0, 0, cc)
+	local xc, yc, w, h = self.constraint:get()
 	if self.cellW and self.cellH then
 		w, h = self.cellW, self.cellH
 	else
@@ -670,7 +773,7 @@ end
 ---However it's probably better to cache this object if lots of same constraint creation is done with same
 ---"inside" parameters
 ---@class NLay.Inside
----@field private obj NLay.BaseConstraint
+---@field package obj NLay.BaseConstraint
 ---@field private pad number[]
 local Inside = {}
 Inside.__index = Inside
@@ -703,7 +806,6 @@ function Inside:constraint(top, left, bottom, right)
 		biasVert = 0.5,
 		inside = self,
 		forceIntoFlags = false,
-		cacheCounter = -1,
 		cacheX = 0,
 		cacheY = 0,
 		cacheW = 0,
@@ -711,15 +813,32 @@ function Inside:constraint(top, left, bottom, right)
 		aspectRatio = 0,
 	}, Constraint)
 
+	if top then
+		addRefCache(result, top)
+	end
+
+	if left then
+		addRefCache(result, left)
+	end
+
+	if bottom then
+		addRefCache(result, bottom)
+	end
+
+	if right then
+		addRefCache(result, right)
+	end
+
 	-- Deduce "into" flags
 	result:_overrideIntoFlags()
 
 	return result
 end
 
+---@package
 ---@return number,number,number,number
-function Inside:_get(_cacheCounter)
-	local x, y, w, h = self.obj:get(nil, nil, _cacheCounter)
+function Inside:_get()
+	local x, y, w, h = self.obj:get()
 	return x + self.pad[2], y + self.pad[1], w - self.pad[4] - self.pad[2], h - self.pad[3] - self.pad[1]
 end
 
@@ -754,6 +873,15 @@ function RootConstraint.update(x, y, w, h)
 		RootConstraint.height ~= h
 	then
 		RootConstraint.x, RootConstraint.y, RootConstraint.width, RootConstraint.height = x, y, w, h
+
+		-- Invalidate all caches
+		if hasTableClear then
+			table.clear(BaseConstraint.cache)
+		else
+			for k in pairs(BaseConstraint.cache) do
+				BaseConstraint.cache[k] = nil
+			end
+		end
 	end
 end
 
@@ -788,9 +916,16 @@ end
 function RootConstraint.max(...)
 	assert(select("#", ...) > 1, "need at least 2 constraint")
 
-	return setmetatable({
+	local list = {...}
+	local result = setmetatable({
 		list = {...}
 	}, MaxConstraint)
+
+	for _, v in ipairs(list) do
+		addRefCache(result, v)
+	end
+
+	return result
 end
 
 ---Create new guideline constraint. Horizontal direction creates vertical line with width of 0 for constraint to
@@ -810,31 +945,33 @@ function RootConstraint.line(constraint, direction, mode, offset)
 		error("invalid mode")
 	end
 
-	return setmetatable({
+	local result = setmetatable({
 		constraint = constraint,
 		direction = direction,
 		mode = mode,
 		lineOffset = offset,
 		flip = 1/offset < 0
 	}, LineConstraint)
+	addRefCache(result, constraint.obj and constraint.obj or constraint)
+	return result
 end
 
 ---Performs batched retrieval of constraint values, improves performance when resolving
 ---different constraints with identical attached constraints.
 ---@param ... NLay.BaseConstraint|number Constraint object followed by its x and y offset. The offsets are required, pass 0 if necessary.
 ---@return number[] @Interleaved resolved constraint values {x1, y1, w1, h1, ..., xn, yn, wn, hn}
+---@deprecated
 function RootConstraint.batchGet(...)
 	local count = select("#", ...)
 	assert(count % 3 == 0, "invalid amount of values passed")
 
 	local values = {}
-	local cc = incrementCacheCounter()
 
 	for i = 1, count, 3 do
 		local constraint = select(i, ...)
 		local offx, offy = select(i + 1, ...), select(i + 2, ...)
 
-		local x, y, w, h = constraint:get(offx or 0, offy or 0, cc)
+		local x, y, w, h = constraint:get(offx or 0, offy or 0)
 		values[#values + 1] = x
 		values[#values + 1] = y
 		values[#values + 1] = w
@@ -893,7 +1030,6 @@ function RootConstraint.grid(constraint, nrows, ncols, settings)
 		rows = nrows,
 		cols = ncols,
 		list = table,
-		cacheCounter = -1,
 	}, Grid)
 
 	if cwidth and cheight then
