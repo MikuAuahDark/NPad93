@@ -843,21 +843,21 @@ function Inside:_get()
 end
 
 ---@class NLay.RootConstraint: NLay.BaseConstraint
-local RootConstraint = {}
-RootConstraint.__index = RootConstraint
-RootConstraint.x = 0
-RootConstraint.y = 0
-RootConstraint.width = 800
-RootConstraint.height = 600
-RootConstraint._VERSION = "1.3.0"
-RootConstraint._AUTHOR = "MikuAuahDark"
-RootConstraint._LICENSE = "MIT"
+local NLay = {}
+NLay.__index = NLay
+NLay.x = 0
+NLay.y = 0
+NLay.width = 800
+NLay.height = 600
+NLay._VERSION = "1.3.0"
+NLay._AUTHOR = "MikuAuahDark"
+NLay._LICENSE = "MIT"
 
 ---@param offx? number X offset (default to 0)
 ---@param offy? number Y offset (default to 0)
 ---@return number,number,number,number
-function RootConstraint:get(offx, offy)
-	return RootConstraint.x + (offx or 0), RootConstraint.y + (offy or 0), RootConstraint.width, RootConstraint.height
+function NLay:get(offx, offy)
+	return NLay.x + (offx or 0), NLay.y + (offy or 0), NLay.width, NLay.height
 end
 
 ---Update the game window dimensions. Normally all return values from `love.window.getSafeArea` should be passed.
@@ -865,14 +865,14 @@ end
 ---@param y number
 ---@param w number
 ---@param h number
-function RootConstraint.update(x, y, w, h)
+function NLay.update(x, y, w, h)
 	if
-		RootConstraint.x ~= x or
-		RootConstraint.y ~= y or
-		RootConstraint.width ~= w or
-		RootConstraint.height ~= h
+		NLay.x ~= x or
+		NLay.y ~= y or
+		NLay.width ~= w or
+		NLay.height ~= h
 	then
-		RootConstraint.x, RootConstraint.y, RootConstraint.width, RootConstraint.height = x, y, w, h
+		NLay.x, NLay.y, NLay.width, NLay.height = x, y, w, h
 
 		-- Invalidate all caches
 		if hasTableClear then
@@ -889,7 +889,7 @@ end
 ---@param object NLay.BaseConstraint
 ---@param padding? number|number[]
 ---@return NLay.Inside
-function RootConstraint.inside(object, padding)
+function NLay.inside(object, padding)
 	padding = padding or 0
 
 	-- Copy padding values
@@ -913,7 +913,7 @@ end
 ---Create new constraint whose the size and the position is based on bounding box of the other constraint.
 ---@vararg NLay.BaseConstraint
 ---@return NLay.MaxConstraint
-function RootConstraint.max(...)
+function NLay.max(...)
 	assert(select("#", ...) > 1, "need at least 2 constraint")
 
 	local list = {...}
@@ -936,7 +936,7 @@ end
 ---@param mode '"percent"' | '"pixel"'
 ---@param offset number
 ---@return NLay.LineConstraint
-function RootConstraint.line(constraint, direction, mode, offset)
+function NLay.line(constraint, direction, mode, offset)
 	if direction ~= "horizontal" and direction ~= "vertical" then
 		error("invalid direction")
 	end
@@ -961,7 +961,7 @@ end
 ---@param ... NLay.BaseConstraint|number Constraint object followed by its x and y offset. The offsets are required, pass 0 if necessary.
 ---@return number[] @Interleaved resolved constraint values {x1, y1, w1, h1, ..., xn, yn, wn, hn}
 ---@deprecated
-function RootConstraint.batchGet(...)
+function NLay.batchGet(...)
 	local count = select("#", ...)
 	assert(count % 3 == 0, "invalid amount of values passed")
 
@@ -998,7 +998,7 @@ end
 ---@param nrows integer
 ---@param ncols integer
 ---@param settings? NLay.GridSetting
-function RootConstraint.grid(constraint, nrows, ncols, settings)
+function NLay.grid(constraint, nrows, ncols, settings)
 	settings = settings or {}
 	local vspace = math.max(selectDefault(settings.vspacing, settings.spacing, 0), 0)
 	local hspace = math.max(selectDefault(settings.hspacing, settings.spacing, 0), 0)
@@ -1039,7 +1039,7 @@ function RootConstraint.grid(constraint, nrows, ncols, settings)
 	return obj
 end
 
-return RootConstraint
+return NLay
 
 --[[
 Changelog:
