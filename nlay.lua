@@ -293,9 +293,21 @@ function Constraint:get(offx, offy)
 					if resolvedWidth and resolvedHeight then
 						if resolvedWidth/resolvedHeight > self.aspectRatio then
 							-- h / ratio, h
-							width, height = resolvedHeight / self.aspectRatio, resolvedHeight
+							height = resolvedHeight
+
+							if self.aspectRatio > 1 then
+								width = resolvedHeight * self.aspectRatio
+							else
+								width = resolvedHeight / self.aspectRatio
+							end
 						else
-							width, height = resolvedWidth, resolvedWidth * self.aspectRatio
+							width = resolvedWidth
+
+							if self.aspectRatio > 1 then
+								height = resolvedWidth * self.aspectRatio
+							else
+								height = resolvedWidth / self.aspectRatio
+							end
 						end
 					elseif resolvedWidth then
 						width, height = resolvedWidth, resolvedWidth
@@ -843,7 +855,7 @@ NLay.x = 0
 NLay.y = 0
 NLay.width = 800
 NLay.height = 600
-NLay._VERSION = "1.4.0"
+NLay._VERSION = "1.4.1"
 NLay._AUTHOR = "MikuAuahDark"
 NLay._LICENSE = "MIT"
 
@@ -1038,6 +1050,9 @@ return NLay
 
 --[[
 Changelog:
+
+v1.4.1: 2022-12-17
+> Fixed Constraint:ratio returns invalid values in certain cases.
 
 v1.4.0: 2022-12-16
 > Implemented a new caching mechanism. This should gives significant boost of
