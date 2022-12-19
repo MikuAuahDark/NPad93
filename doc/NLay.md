@@ -285,7 +285,7 @@ Returns: itself
 
 ************************************************
 
-### `Grid Grid:cellSize(number width, number height)
+### `Grid Grid:cellSize(number width, number height)`
 
 Set the cell size of the grid, excluding spacing. This function only takes effect on fixed mode described earlier,
 otherwise it does nothing.

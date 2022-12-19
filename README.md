@@ -5,12 +5,15 @@ Various NPad Lua libraries for LOVE can be found here. Most libs are single file
 
 Check each file/folder for license terms.
 
-ts-declarations
+declarations
 -----
 
-This is not a library, but it's TypeScript definitions meant to be used with [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua).
+This is not a library, but it's type definitions.
 
-Each file correspond to each module, unless noted. Note that some module may not have TypeScript definitions, yet.
+* Files ending with `.ts` is meant to be used with [TypeScriptToLua](https://github.com/TypeScriptToLua/TypeScriptToLua).
+* Files ending with `.tl` is meant to be used with [Teal](https://github.com/teal-language/tl/blob/master/docs/declaration_files.md).
+
+Each file correspond to each module, unless noted. Note that some module may not have type definitions, yet.
 
 NVec
 -----
@@ -210,3 +213,10 @@ Simple lexical analysis, translated directly from Python's shlex.
 From Python documentation: The shlex class makes it easy to write lexical analyzers for simple syntaxes resembling that of the Unix shell. This will often be useful for writing minilanguages, (for example, in run control files for Python applications) or for parsing quoted strings.
 
 Note: This library is untested with Python's test vectors. Use at your own discretion.
+
+vires
+-----
+
+Virtual resolution system with safe area support.
+
+Best used with NLay.

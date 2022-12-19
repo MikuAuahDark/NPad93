@@ -3,7 +3,7 @@ NAniTe Documentation
 
 If you don't know what NAniTe is, please go back to https://github.com/MikuAuahDark/NPad93#nanite
 
-Functions in v1.0.1
+Functions in v1.0.0
 -----
 
 ************************************************
