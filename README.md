@@ -220,3 +220,59 @@ vires
 Virtual resolution system with safe area support.
 
 Best used with NLay.
+
+Manami
+-----
+A library to display text as one character at a time.
+Similar to [reflowprint](https://github.com/josefnpat/reflowprint) but supports UTF-8, colored text, and justify alignment.
+
+![video](https://cdn.discordapp.com/attachments/474705430434807819/1058695629490114600/manami_test.mp4)
+
+Example
+```lua
+local manami = require("manami")
+local textToWrite = {
+	{1, 0, 0}, "This text is written ",
+	{1, 1, 0}, "to demonstrate the ",
+	{0, 1, 0}, "functionality of 愛海 (Manami), ",
+	{0, 1, 1}, "an improved reflowprint ",
+	{0, 0, 1}, "with UTF-8 and multicolor ",
+	{1, 1, 1}, "support along with justify alignment.",
+}
+local reflow = manami(textToWrite, width, targetAlignment)
+```
+
+The `manami` function signature is as follows:
+
+```lua
+manami manami(string|table text, limit, align, font, separator, lengthCalc): manami
+```
+
+Where:
+* `text` - String or colored text according to [LOVE colored text format](https://love2d.org/wiki/love.graphics.print#Function_3).
+* `limit` - Wrap the line after this many horizontal pixels.
+* `align` - [Text alignment](https://love2d.org/wiki/AlignMode). Default is `"left"`.
+* `font` - Font to use. Default is return value of `love.graphics.getFont()` when this function is called.
+* `separator` - How to separate the text out. If this is string, then it's treated as delimiter. If this is function, then it returns how many character to consume. Default is function that always return 1 (consume one character at a time).
+* `lengthCalc` - How to calculate the duration of each character before showing the next one. By default this is a function that returns the amount of character passed.
+* Returns new `manami` object.
+
+The function signature of `separator` (if function is passed) is as follows:
+```lua
+number separator(string s)
+```
+Where:
+* `s` - Unconsumed text.
+* Returns `number` of how many (UTF-8) character(s) (**not bytes**) to consume from `s`.
+
+The function signature of `lengthCalc` is as follows:
+```lua
+number lengthCalc(string s)
+```
+Where:
+* `s` - The chopped text based on return value of `separator` function.
+* Returns `number` of the text duration in _time units_.
+
+The definition of _time units_ is up to user. If user assume it's in seconds, then with default `separator` and `lengthCalc`, the character will be displayed one-by-one every second.
+
+A demo `main.lua` can be found here: https://gist.github.com/MikuAuahDark/95c5b626b9607da80d9372d906c3d7b6#file-main-lua (don't use the outdated `manami.lua` there).
