@@ -226,7 +226,7 @@ Manami
 A library to display text as one character at a time.
 Similar to [reflowprint](https://github.com/josefnpat/reflowprint) but supports UTF-8, colored text, and justify alignment.
 
-![video](https://cdn.discordapp.com/attachments/474705430434807819/1058695629490114600/manami_test.mp4)
+https://user-images.githubusercontent.com/7500438/210179454-50695a5f-e720-48d9-bd41-a7b34e1638cb.mp4
 
 Example
 ```lua
