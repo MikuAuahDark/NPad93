@@ -1,6 +1,6 @@
 -- NPad's Layouting Library, based on ConstraintLayout
 --
--- Copyright (c) 2022 Miku AuahDark
+-- Copyright (c) 2023 Miku AuahDark
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a
 -- copy of this software and associated documentation files (the "Software"),
@@ -19,8 +19,6 @@
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 -- DEALINGS IN THE SOFTWARE.
-
-local hasTableClear = pcall(require, "table.clear")
 
 ---@class NLay.Cache
 ---@field package x number?
@@ -855,7 +853,7 @@ NLay.x = 0
 NLay.y = 0
 NLay.width = 800
 NLay.height = 600
-NLay._VERSION = "1.4.1"
+NLay._VERSION = "1.4.2"
 NLay._AUTHOR = "MikuAuahDark"
 NLay._LICENSE = "MIT"
 
@@ -879,16 +877,17 @@ function NLay.update(x, y, w, h)
 		NLay.height ~= h
 	then
 		NLay.x, NLay.y, NLay.width, NLay.height = x, y, w, h
+		NLay.flushCache()
+	end
+end
 
-		-- Invalidate all caches
-		if hasTableClear then
-			---@diagnostic disable-next-line: undefined-field
-			table.clear(BaseConstraint.cache)
-		else
-			for k in pairs(BaseConstraint.cache) do
-				BaseConstraint.cache[k] = nil
-			end
-		end
+---Invalidate all constraint cache. Use sparingly!
+---
+---This function is automatically called after resolution change is detected
+---in `NLay.update()`
+function NLay.flushCache()
+	for k in pairs(BaseConstraint.cache) do
+		invalidateCache(k)
 	end
 end
 
@@ -1050,6 +1049,9 @@ return NLay
 
 --[[
 Changelog:
+
+v1.4.2: 2023-01-18
+> Fixed cache invalidation on NLay.update()
 
 v1.4.1: 2022-12-17
 > Fixed Constraint:ratio returns invalid values in certain cases.
