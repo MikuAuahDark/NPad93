@@ -276,3 +276,30 @@ Where:
 The definition of _time units_ is up to user. If user assume it's in seconds, then with default `separator` and `lengthCalc`, the character will be displayed one-by-one every second.
 
 A demo `main.lua` can be found here: https://gist.github.com/MikuAuahDark/95c5b626b9607da80d9372d906c3d7b6#file-main-lua (don't use the outdated `manami.lua` there).
+
+NPNN
+-----
+**NP**ad **N**eural **N**etwork
+
+A simple neural network implementation. It has implenentation of Linear/Dense/FC layer and LSTM layer.
+
+Normally you pass the weights exported from PyTorch to the layers.
+
+```py
+import json
+import torch
+
+# Say you have PyTorch model in "model" variable
+model: torch.nn.Module
+
+class EncodeTensor(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, torch.Tensor):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+with open("modeldata.json", "w", encoding="UTF-8") as f:
+    json.dump(model.state_dict(), f, cls=EncodeTensor, ensure_ascii=False)
+```
+
+Then you load `modeldata.json` using your favorite JSON decoder and pass the weights and the biases to the NN functions.
