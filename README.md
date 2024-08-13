@@ -303,3 +303,55 @@ with open("modeldata.json", "w", encoding="UTF-8") as f:
 ```
 
 Then you load `modeldata.json` using your favorite JSON decoder and pass the weights and the biases to the NN functions.
+
+N9P
+-----
+**N**Pad93's **9**-**P**atch. **Work in progress!**
+
+Yet another 9-patch library for LÖVE.
+
+Compared to different implementation, it has an API on constructing your own slices and your own texture or let the
+library do everything for you using `.9.png` image.
+
+Simple construction example:
+
+```lua
+-- Automatic mode. image.9.png must follow Android 9-patch drawable spec.
+local n9p = require("n9p")
+local stretchableImage = n9p.load("image.9.png")
+
+-- stretchableImage is now usable
+```
+
+Advanced construction example:
+
+```lua
+-- Manual mode. Specify the stretchable regions yourself.
+local n9p = require("n9p")
+local existingImage = love.graphics.newImage("image_32x32.png")
+local stretchableImage = n9p.newBuilder()
+	:addHorizontalSlice(8, 24)
+	:addVerticalSlice(8, 24)
+	:setHorizontalPadding(4, 28)
+	:setVerticalPadding(4, 28)
+	:build(existingImage:getDimensions())
+stretchableImage:setTexture(existingImage)
+
+-- stretchableImage is now usable
+```
+
+Drawing example:
+
+```lua
+local stretchableImage = ... -- (see above)
+local rootWindowGetter = {get = love.window.getSafeArea} -- fulfils get(self) = x,y,w,h
+
+function love.draw()
+	-- Method 1 of drawing: specifying position directly
+	local w, h = love.graphics.getDimensions()
+	stretchableImage:draw(0, 0, w, h)
+
+	-- Method 2 of drawing: specifying constraint object
+	stretchableImage:drawConstraint(rootWindowGetter)
+end
+```
