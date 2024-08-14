@@ -306,7 +306,7 @@ Then you load `modeldata.json` using your favorite JSON decoder and pass the wei
 
 N9P
 -----
-**N**Pad93's **9**-**P**atch. **Work in progress!**
+**N**Pad93's **9**-**P**atch.
 
 Yet another 9-patch library for LÖVE.
 
@@ -355,3 +355,5 @@ function love.draw()
 	stretchableImage:drawConstraint(rootWindowGetter)
 end
 ```
+
+No separate mrkdown documentation for now, but the public APIs are fully documented.
