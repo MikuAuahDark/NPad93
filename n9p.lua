@@ -450,11 +450,19 @@ function Builder:build(textureWidth, textureHeight, subX, subY, subW, subH)
 	local quads = {}
 
 	-- Add unstretchable regions
-	horz[#horz+1] = {"keep", self.hregion[1][1]}
-	vert[#vert+1] = {"keep", self.vregion[1][1]}
+	if self.hregion[1][1] > subX then
+		horz[#horz+1] = {"keep", self.hregion[1][1] - subX}
+	end
+
+	if self.vregion[1][1] > subY then
+		vert[#vert+1] = {"keep", self.vregion[1][1] - subY}
+	end
 
 	-- Loop region
-	for _, target in ipairs({{horz, self.hregion, subX + subW}, {vert, self.vregion, subY + subH}}) do
+	for _, target in ipairs({
+		{horz, self.hregion, subX + subW},
+		{vert, self.vregion, subY + subH}
+	}) do
 		local targetRegions = target[1]
 
 		for i, reg in ipairs(target[2]) do
