@@ -29,7 +29,11 @@ if love.getVersion() >= 12 then
 	applyTransform = love.graphics.applyTransform
 else
 	function applyTransform(x, y, a, sx, sy, ox, oy, kx, ky)
-		return love.graphics.applyTransform(love.math.newTransform(x, y, a, sx, sy, ox, oy, kx, ky))
+		if type(x) == "number" then
+			return love.graphics.applyTransform(love.math.newTransform(x, y, a, sx, sy, ox, oy, kx, ky))
+		else
+			return love.graphics.applyTransform(x)
+		end
 	end
 end
 
