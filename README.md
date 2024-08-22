@@ -308,7 +308,7 @@ N9P
 -----
 **N**Pad93's **9**-**P**atch.
 
-Yet another 9-patch library for LÖVE.
+Yet another [9-patch](https://developer.android.com/studio/write/draw9patch) library for LÖVE.
 
 Compared to different implementation, it has an API on constructing your own slices and your own texture or let the
 library do everything for you using `.9.png` image.
@@ -318,7 +318,7 @@ Simple construction example:
 ```lua
 -- Automatic mode. image.9.png must follow Android 9-patch drawable spec.
 local n9p = require("n9p")
-local stretchableImage = n9p.load("image.9.png")
+local stretchableImage = n9p.loadFromImage("image.9.png")
 
 -- stretchableImage is now usable
 ```
