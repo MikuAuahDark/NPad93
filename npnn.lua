@@ -158,6 +158,39 @@ makeCallable(Activation)
 ---@cast Activation +fun(func:fun(x:number):number):npnn.Activation
 npnn.Activation = Activation
 
+---Softmax activation function.
+---@class (exact) npnn.Softmax: npnn.NNBase
+---@field package values number[]
+local Softmax = {}
+---@diagnostic disable-next-line: inject-field
+Softmax.__index = Softmax
+
+---@param input number[]
+function Softmax:forward(input)
+	local sum = 0
+
+	for _, v in ipairs(input) do
+		sum = sum + math.exp(v)
+	end
+
+	for i, v in ipairs(input) do
+		self.values[i] = math.exp(v) / sum
+	end
+
+	return self.values
+end
+
+---@diagnostic disable-next-line: inject-field
+function Softmax.new()
+	return setmetatable({
+		values = {}
+	}, Softmax)
+end
+
+makeCallable(Softmax)
+---@cast Softmax +fun():npnn.Softmax
+npnn.Softmax = Softmax
+
 ---Fully-Connected Layer (nn.Linear in PyTorch, Dense in Tensorflow).
 ---@class (exact) npnn.Linear: npnn.NNBase
 ---@field package weights number[][]
