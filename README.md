@@ -86,7 +86,7 @@ NLay is **NOT** full UI library. It merely function as helper on element placeme
 
 Example:
 
-![Example](https://cdn.discordapp.com/attachments/454274817236140033/897108019584831508/unknown.png)
+![Example](https://github.com/user-attachments/assets/6501ce22-5749-43de-8441-bee089414237)
 
 Code to reproduce rectangle placement above are as follows
 
@@ -197,7 +197,7 @@ NAniTe
 
 Timeline-based animation system with support of forward and backward update.
 
-[Demo LOVE Project v1.0.0](https://cdn.discordapp.com/attachments/474705430434807819/1043092280887750716/nanite-demo.love).
+[Demo LOVE Project v1.0.0](https://MikuAuahDark.github.io/nanite-demo.love).
 Control are as follows:
 * `space` - Pause/resume the animation
 * `enter` - Toggle between forward or backward update
