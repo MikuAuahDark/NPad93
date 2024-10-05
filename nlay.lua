@@ -74,7 +74,7 @@ end
 
 
 
----@class (exact) NLay.Constraint: NLay.BaseConstraint
+---@class NLay.Constraint: NLay.BaseConstraint
 ---@field package top NLay.BaseConstraint?
 ---@field package left NLay.BaseConstraint?
 ---@field package bottom NLay.BaseConstraint?
@@ -94,7 +94,7 @@ end
 ---@field private relH boolean
 ---@field private biasHorz number
 ---@field private biasVert number
----@field private parent NLay.BaseConstraint
+---@field package parent NLay.BaseConstraint
 local Constraint = dupmethods(BaseConstraint)
 ---@private
 Constraint.__index = Constraint ---@diagnostic disable-line: inject-field
@@ -107,12 +107,17 @@ local function mix(a, b, t)
 	return (1 - t) * a + t * b
 end
 
----@param self NLay.BaseConstraint
-local function resolveWithoutPadding(self)
-	local x, y, w, h = self:get()
-	if self._NLay_type_ == Constraint._NLay_type_ then
+---@param self NLay.Constraint
+---@param target NLay.BaseConstraint
+local function resolveWithoutPadding(self, target)
+	local x, y, w, h = target:get()
+
+	if self.parent ~= target and target._NLay_type_ == Constraint._NLay_type_ then
 		---@cast self NLay.Constraint
-		return x - self.pad[2], y - self.pad[1], w + self.pad[4] + self.pad[2], h + self.pad[3] + self.pad[1]
+		x = x - self.pad[2]
+		y = y - self.pad[1]
+		w = w + self.pad[4] + self.pad[2]
+		h = h + self.pad[3] + self.pad[1]
 	end
 
 	return x, y, w, h
@@ -127,7 +132,7 @@ local function resolveWidthSize0(self)
 	end
 
 	-- Left
-	local e1x, _, e1w = resolveWithoutPadding(self.left)
+	local e1x, _, e1w = resolveWithoutPadding(self, self.left)
 	if self.inLeft then
 		x = e1x + self.marginX
 	else
@@ -135,7 +140,7 @@ local function resolveWidthSize0(self)
 	end
 
 	-- Right
-	local e2x, _, e2w = resolveWithoutPadding(self.right)
+	local e2x, _, e2w = resolveWithoutPadding(self, self.right)
 	if self.inRight then
 		width = e2x + e2w - x - self.marginW
 	else
@@ -153,7 +158,7 @@ local function resolveHeightSize0(self)
 		error("insufficient constraint for height 0")
 	end
 
-	local e1y, _, e1h = select(2, resolveWithoutPadding(self.top))
+	local e1y, _, e1h = select(2, resolveWithoutPadding(self, self.top))
 
 	if self.inTop then
 		y = e1y + self.marginY
@@ -161,7 +166,7 @@ local function resolveHeightSize0(self)
 		y = e1y + e1h + self.marginY
 	end
 
-	local e2y, _, e2h = select(2, resolveWithoutPadding(self.bottom))
+	local e2y, _, e2h = select(2, resolveWithoutPadding(self, self.bottom))
 
 	if self.inBottom then
 		height = e2y + e2h - y - self.marginH
@@ -302,7 +307,7 @@ function Constraint:get(offx, offy)
 
 			if width == -1 then
 				-- Match parent
-				local px, _, pw = resolveWithoutPadding(self.parent)
+				local px, _, pw = resolveWithoutPadding(self, self.parent)
 				x, width = px, pw
 			elseif width == 0 then
 				-- Match constraint
@@ -311,8 +316,9 @@ function Constraint:get(offx, offy)
 
 			if height == -1 then
 				-- Match parent
-				local py, _, ph = select(2, resolveWithoutPadding(self.parent))
-				y, h = py, ph
+				---@type number,number,number
+				local py, _, ph = select(2, resolveWithoutPadding(self, self.parent)) ---@diagnostic disable-line: assign-type-mismatch
+				y, height = py, ph
 			elseif height == 0 then
 				-- Match constraint
 				y, height = resolveHeightSize0(self)
@@ -324,7 +330,7 @@ function Constraint:get(offx, offy)
 
 				if self.left then
 					-- Left orientation
-					local e1x, _, e1w = resolveWithoutPadding(self.left)
+					local e1x, _, e1w = resolveWithoutPadding(self, self.left)
 
 					if self.inLeft then
 						l = e1x + self.marginX
@@ -335,7 +341,7 @@ function Constraint:get(offx, offy)
 
 				if self.right then
 					-- Right orientation
-					local e2x, _, e2w = resolveWithoutPadding(self.right)
+					local e2x, _, e2w = resolveWithoutPadding(self, self.right)
 
 					if self.inRight then
 						r = e2x + e2w - self.marginW - w
@@ -358,7 +364,7 @@ function Constraint:get(offx, offy)
 
 				if self.top then
 					-- Top orientation
-					local e1y, _, e1h = select(2, resolveWithoutPadding(self.top))
+					local e1y, _, e1h = select(2, resolveWithoutPadding(self, self.top))
 
 					if self.inTop then
 						t = e1y + self.marginY
@@ -369,7 +375,7 @@ function Constraint:get(offx, offy)
 
 				if self.bottom then
 					-- Bottom orientation
-					local e2y, _, e2h = select(2, resolveWithoutPadding(self.bottom))
+					local e2y, _, e2h = select(2, resolveWithoutPadding(self, self.bottom))
 
 					if self.inBottom then
 						b = e2y + e2h - self.marginH - h
@@ -470,7 +476,7 @@ end
 ---Set the constraint bias. By default, for fixed width/height, the position are centered around (bias 0.5).
 ---@param horz number|nil Horizontal bias, real value between 0..1 inclusive.
 ---@param vert number|nil Vertical bias, real value between 0..1 inclusive.
----@param unclamped boolean Do not limit bias ratio?
+---@param unclamped? boolean Do not limit bias ratio?
 ---@return NLay.Constraint
 function Constraint:bias(horz, vert, unclamped)
 	if horz then
@@ -499,7 +505,7 @@ end
 
 
 
----@class (exact) NLay.MaxConstraint: NLay.BaseConstraint
+---@class NLay.MaxConstraint: NLay.BaseConstraint
 ---@field private list NLay.BaseConstraint[]
 local MaxConstraint = dupmethods(BaseConstraint)
 ---@private
@@ -528,7 +534,7 @@ end
 
 
 
----@class (exact) NLay.LineConstraint: NLay.BaseConstraint
+---@class NLay.LineConstraint: NLay.BaseConstraint
 ---@field private constraint NLay.BaseConstraint
 ---@field private direction '"horizontal"' | '"vertical"'
 ---@field private mode '"percent"' | '"pixel"'
@@ -588,7 +594,7 @@ end
 
 
 
----@class (exact) NLay.GridCellConstraint: NLay.BaseConstraint
+---@class NLay.GridCellConstraint: NLay.BaseConstraint
 ---@field private context NLay.Grid
 ---@field private x0 integer
 ---@field private y0 integer
@@ -608,7 +614,7 @@ end
 
 
 
----@class (exact) NLay.Grid
+---@class NLay.Grid
 ---@field private constraint NLay.Constraint
 ---@field private list NLay.GridCellConstraint[]
 ---@field private rows integer
@@ -696,6 +702,8 @@ end
 ---Set fixed grid cell size.
 ---
 ---On dynamic mode, this function does nothing.
+---@param width number
+---@param height number
 function Grid:cellSize(width, height)
 	if self:isFixed() then
 		self.cellW, self.cellH = width or self.cellW, height or self.cellH
@@ -751,7 +759,7 @@ end
 
 
 
----@class (exact) NLay.RatioConstraint: NLay.BaseConstraint
+---@class NLay.RatioConstraint: NLay.BaseConstraint
 ---@field private parent NLay.BaseConstraint
 ---@field private numerator number
 ---@field private denominator number
@@ -802,7 +810,7 @@ end
 ---Set the constraint bias. By default, the position are centered around (bias 0.5).
 ---@param horz number|nil Horizontal bias, real value between 0..1 inclusive.
 ---@param vert number|nil Vertical bias, real value between 0..1 inclusive.
----@param unclamped boolean Do not limit bias ratio?
+---@param unclamped? boolean Do not limit bias ratio?
 ---@return NLay.RatioConstraint
 function RatioConstraint:bias(horz, vert, unclamped)
 	if horz then
@@ -850,7 +858,7 @@ end
 
 
 
----@class (exact) NLay.FloatingConstraint: NLay.BaseConstraint
+---@class NLay.FloatingConstraint: NLay.BaseConstraint
 ---@field private x number
 ---@field private y number
 ---@field private w number
@@ -916,7 +924,7 @@ function FloatingConstraint:get(offx, offy)
 	return self.x + (offx or 0), self.y + (offy or 0), self.w, self.h
 end
 
----@class (exact) NLay.ForeignConstraint: NLay.BaseConstraint
+---@class NLay.ForeignConstraint: NLay.BaseConstraint
 ---@field private getter {get:fun(self:any):(number,number,number,number)}
 ---@field private manualupdate boolean
 local ForeignConstraint = dupmethods(BaseConstraint)
@@ -939,7 +947,7 @@ end
 
 
 
----@class (exact) NLay.SelectableConstraint: NLay.BaseConstraint
+---@class NLay.SelectableConstraint: NLay.BaseConstraint
 ---@field package constraints NLay.BaseConstraint[]
 ---@field private selectedIndex integer
 local SelectableConstraint = dupmethods(BaseConstraint)
@@ -966,7 +974,7 @@ end
 
 
 
----@class (exact) NLay.TransposedConstraint: NLay.BaseConstraint
+---@class NLay.TransposedConstraint: NLay.BaseConstraint
 ---@field private parent NLay.BaseConstraint
 local TransposedConstraint = dupmethods(BaseConstraint)
 ---@private
@@ -985,7 +993,7 @@ end
 
 
 ---This class is used to mark to consider the inner border of a constraint instead of the outer.
----@class (exact) NLay.Into
+---@class NLay.Into
 ---@field public value NLay.BaseConstraint
 ---@field public _NLay_type_ string
 local Into = {_NLay_type_ = "NLay.Into"}
@@ -1018,7 +1026,7 @@ NLay.x = 0
 NLay.y = 0
 NLay.width = 800
 NLay.height = 600
-NLay._VERSION = "2.0.0"
+NLay._VERSION = "2.0.1"
 NLay._AUTHOR = "MikuAuahDark"
 NLay._LICENSE = "MIT"
 
@@ -1416,6 +1424,11 @@ return NLay
 
 --[[
 Changelog:
+
+v2.0.1: 2024-10-05
+> Fixed annotation of NLay.grid.
+> Fixed behavior on constraint padding.
+> Workaround annotation issue with recent LuaLS plugin.
 
 v2.0.0: 2024-10-03
 > Replaced NLay.inside(c, pad):constraint(...) with simpler NLay.constraint(c, ..., pad).
